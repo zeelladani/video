@@ -371,8 +371,8 @@
             pointer-events: none;
         }
 
-        /* Mirror effect for local video */
-        .local-video video {
+        /* Mirror effect for local video - only for front camera */
+        .local-video.front-camera video {
             transform: scaleX(-1);
         }
 
@@ -436,6 +436,7 @@
             gap: 16px;
             border-top: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
 
         .control-btn {
@@ -489,6 +490,15 @@
 
         .control-btn.active span {
             color: white;
+        }
+
+        /* Camera switch button specific */
+        #switch-camera {
+            background: rgba(255,255,255,0.1);
+        }
+
+        #switch-camera.active {
+            background: var(--primary);
         }
 
         /* Loading Overlay */
@@ -618,6 +628,11 @@
             .control-btn span { 
                 font-size: 10px; 
             }
+
+            .call-controls {
+                gap: 8px;
+                padding: 8px 12px;
+            }
         }
 
         /* Safe areas */
@@ -699,6 +714,10 @@
                     <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Video">
                     <span>Video</span>
                 </button>
+                <button id="switch-camera" class="control-btn" title="Switch camera">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2917/2917996.png" alt="Switch Camera">
+                    <span>Camera</span>
+                </button>
                 <button id="toggle-screen" class="control-btn" title="Share screen">
                     <img src="https://cdn-icons-png.flaticon.com/512/1828/1828884.png" alt="Screen">
                     <span>Screen</span>
@@ -748,13 +767,18 @@
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
-                this.peers = new Map(); // Use Map instead of object for better management
+                this.peers = new Map();
                 this.roomId = null;
                 this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
                 this.screenStream = null;
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
-                this.pendingSignals = new Map(); // Store signals for peers not yet created
+                this.pendingSignals = new Map();
+                
+                // Camera switching properties
+                this.currentFacingMode = 'user'; // 'user' for front, 'environment' for back
+                this.hasMultipleCameras = false;
+                this.availableCameras = [];
                 
                 this.initializeElements();
                 this.attachEvents();
@@ -778,6 +802,7 @@
                 // Control buttons
                 this.muteBtn = document.getElementById('toggle-mute');
                 this.videoBtn = document.getElementById('toggle-video');
+                this.switchCameraBtn = document.getElementById('switch-camera');
                 this.screenBtn = document.getElementById('toggle-screen');
                 this.leaveBtn = document.getElementById('leave-call');
             }
@@ -788,6 +813,7 @@
                 this.copyBtn.addEventListener('click', () => this.copyRoomCode());
                 this.muteBtn.addEventListener('click', () => this.toggleAudio());
                 this.videoBtn.addEventListener('click', () => this.toggleVideo());
+                this.switchCameraBtn.addEventListener('click', () => this.switchCamera());
                 this.screenBtn.addEventListener('click', () => this.toggleScreen());
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
                 
@@ -920,11 +946,14 @@
 
             async initializeMedia() {
                 try {
+                    // First check available cameras
+                    await this.checkAvailableCameras();
+                    
                     const constraints = {
                         video: {
                             width: { ideal: 1280, max: 1920 },
                             height: { ideal: 720, max: 1080 },
-                            facingMode: 'user'
+                            facingMode: this.currentFacingMode
                         },
                         audio: {
                             echoCancellation: true,
@@ -934,9 +963,12 @@
                     };
                     
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    console.log('🎥 Media initialized successfully');
+                    console.log('🎥 Media initialized successfully with facing mode:', this.currentFacingMode);
                     
                     this.addLocalVideo();
+                    
+                    // Show/hide camera switch button based on availability
+                    this.switchCameraBtn.style.display = this.hasMultipleCameras ? 'flex' : 'none';
                     
                 } catch (error) {
                     console.error('Media initialization error:', error);
@@ -949,6 +981,10 @@
                         });
                         console.log('📹 Media initialized with basic constraints');
                         this.addLocalVideo();
+                        
+                        // Hide camera switch button (can't determine if multiple cameras)
+                        this.switchCameraBtn.style.display = 'none';
+                        
                     } catch (fallbackError) {
                         this.showToast('Camera and microphone access is required');
                         throw error;
@@ -956,9 +992,101 @@
                 }
             }
 
+            async checkAvailableCameras() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    this.availableCameras = devices.filter(device => device.kind === 'videoinput');
+                    this.hasMultipleCameras = this.availableCameras.length > 1;
+                    
+                    console.log(`Found ${this.availableCameras.length} camera(s)`);
+                    
+                    if (this.hasMultipleCameras) {
+                        console.log('Multiple cameras available - switch button enabled');
+                    }
+                } catch (error) {
+                    console.error('Error checking cameras:', error);
+                    this.hasMultipleCameras = false;
+                }
+            }
+
+            async switchCamera() {
+                if (!this.hasMultipleCameras) {
+                    this.showToast('No alternative camera available');
+                    return;
+                }
+
+                try {
+                    this.showLoading(true, 'Switching camera...');
+                    
+                    // Toggle facing mode
+                    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
+                    
+                    // Get current video track settings to maintain resolution
+                    const currentTrack = this.localStream.getVideoTracks()[0];
+                    const settings = currentTrack.getSettings();
+                    
+                    // Stop current video tracks
+                    this.localStream.getVideoTracks().forEach(track => {
+                        track.stop();
+                        this.localStream.removeTrack(track);
+                    });
+                    
+                    // Create new video track with new facing mode
+                    const newStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: settings.width ? { ideal: settings.width } : { ideal: 1280 },
+                            height: settings.height ? { ideal: settings.height } : { ideal: 720 },
+                            facingMode: this.currentFacingMode
+                        },
+                        audio: false // Keep existing audio track
+                    });
+                    
+                    const newVideoTrack = newStream.getVideoTracks()[0];
+                    
+                    // Add new video track to local stream
+                    this.localStream.addTrack(newVideoTrack);
+                    
+                    // Update all peer connections with new video track
+                    this.peers.forEach((peer) => {
+                        if (peer) {
+                            try {
+                                peer.replaceTrack(newVideoTrack, this.localStream);
+                            } catch (e) {
+                                console.error('Error replacing track in peer:', e);
+                            }
+                        }
+                    });
+                    
+                    // Update local video element
+                    const localVideo = document.querySelector(`#container-${this.userId} video`);
+                    if (localVideo) {
+                        localVideo.srcObject = this.localStream;
+                    }
+                    
+                    // Update mirror effect class
+                    const localContainer = document.getElementById(`container-${this.userId}`);
+                    if (localContainer) {
+                        if (this.currentFacingMode === 'user') {
+                            localContainer.classList.add('front-camera');
+                        } else {
+                            localContainer.classList.remove('front-camera');
+                        }
+                    }
+                    
+                    this.showToast(`Switched to ${this.currentFacingMode === 'user' ? 'front' : 'back'} camera`);
+                    console.log(`Camera switched to ${this.currentFacingMode} mode`);
+                    
+                } catch (error) {
+                    console.error('Error switching camera:', error);
+                    this.showToast('Failed to switch camera');
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
             addLocalVideo() {
                 const container = document.createElement('div');
-                container.className = 'video-container local-video';
+                container.className = `video-container local-video ${this.currentFacingMode === 'user' ? 'front-camera' : ''}`;
                 container.id = `container-${this.userId}`;
                 
                 const video = document.createElement('video');
@@ -1032,6 +1160,9 @@
                     console.log('👋 Participant left:', participantId);
                     this.removeParticipant(participantId);
                     this.updateParticipantCount(roomRef);
+                    
+                    // Check if room should be cleaned up
+                    this.checkAndCleanupRoom(roomRef);
                 });
 
                 // Listen for signaling data
@@ -1052,6 +1183,24 @@
                 roomRef.child('participants').once('value', (snap) => {
                     const count = snap.val() ? Object.keys(snap.val()).length : 0;
                     this.participantCount.textContent = count;
+                });
+            }
+
+            checkAndCleanupRoom(roomRef) {
+                roomRef.child('participants').once('value', (snap) => {
+                    const participants = snap.val();
+                    const count = participants ? Object.keys(participants).length : 0;
+                    
+                    if (count === 0) {
+                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
+                        roomRef.remove()
+                            .then(() => {
+                                console.log(`✅ Room ${this.roomId} deleted successfully`);
+                            })
+                            .catch((error) => {
+                                console.error(`❌ Failed to delete room ${this.roomId}:`, error);
+                            });
+                    }
                 });
             }
 
@@ -1107,7 +1256,6 @@
 
                     peer.on('error', (err) => {
                         console.error('⚠️ Peer connection error:', peerId, err.message);
-                        // Don't remove immediately, might recover
                     });
 
                     peer.on('connect', () => {
@@ -1189,7 +1337,7 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
 
-                // Handle play() promise correctly to avoid AbortError
+                // Handle play() promise correctly
                 const playPromise = video.play();
 
                 if (playPromise !== undefined) {
@@ -1199,7 +1347,6 @@
                         })
                         .catch(error => {
                             console.error('Remote video play error for', userId, ':', error.name);
-                            // Auto-play was prevented, user interaction might be needed
                         });
                 }
             }
