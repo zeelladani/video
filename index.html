@@ -9,7 +9,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a1a">
     <style>
-        /* ... (CSS remains the same as previous version) ... */
         * {
             margin: 0;
             padding: 0;
@@ -749,13 +748,13 @@
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
-                this.peers = new Map();
+                this.peers = new Map(); // Use Map instead of object for better management
                 this.roomId = null;
                 this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
                 this.screenStream = null;
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
-                this.isInitialized = false; // Track if fully initialized
+                this.pendingSignals = new Map(); // Store signals for peers not yet created
                 
                 this.initializeElements();
                 this.attachEvents();
@@ -860,11 +859,7 @@
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
                     
-                    // Setup Firebase listeners BEFORE adding to participants
                     this.setupFirebaseListeners();
-                    
-                    // Mark as initialized
-                    this.isInitialized = true;
                     
                     this.showToast(`Room created: ${this.roomId}`);
                     setTimeout(() => this.copyRoomCode(), 1000);
@@ -911,11 +906,7 @@
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
                     
-                    // Setup Firebase listeners BEFORE adding to participants
                     this.setupFirebaseListeners();
-                    
-                    // Mark as initialized
-                    this.isInitialized = true;
                     
                     this.showToast(`Joined room: ${roomCode}`);
                     
@@ -945,7 +936,6 @@
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
                     console.log('🎥 Media initialized successfully');
                     
-                    // Add local video to grid
                     this.addLocalVideo();
                     
                 } catch (error) {
@@ -1010,32 +1000,23 @@
                 console.log('🔊 Setting up Firebase listeners for room:', this.roomId);
 
                 const roomRef = database.ref(`rooms/${this.roomId}`);
-                
-                // IMPORTANT: First set up the participant listener to catch existing participants
-                roomRef.child('participants').on('child_added', (snapshot) => {
-                    const participantId = snapshot.key;
-                    if (participantId !== this.userId) {
-                        console.log('👤 Participant found in room:', participantId);
-                        
-                        // Connect to existing participants
-                        if (!this.peers.has(participantId) && this.localStream) {
-                            console.log('Connecting to existing participant:', participantId);
-                            setTimeout(() => {
-                                if (!this.peers.has(participantId)) {
-                                    this.connectToPeer(participantId, true);
-                                }
-                            }, 1000);
-                        }
-                    }
+                const participantRef = roomRef.child('participants').child(this.userId);
+
+                // Add self to participants
+                participantRef.set({
+                    timestamp: Date.now(),
+                    userId: this.userId
                 });
 
-                // Listen for new participants joining after us
+                participantRef.onDisconnect().remove();
+
+                // Listen for new participants - use once to avoid duplicates
                 roomRef.child('participants').on('child_added', (snapshot) => {
                     const participantId = snapshot.key;
-                    if (participantId !== this.userId && !this.peers.has(participantId) && this.localStream) {
+                    if (participantId !== this.userId && !this.peers.has(participantId)) {
                         console.log('👤 New participant joined:', participantId);
-                        // Add delay to avoid connection conflicts
-                        const delay = Math.random() * 1000 + 500;
+                        // Use a random delay to avoid simultaneous connections
+                        const delay = Math.random() * 1000;
                         setTimeout(() => {
                             if (!this.peers.has(participantId)) {
                                 this.connectToPeer(participantId, true);
@@ -1051,9 +1032,6 @@
                     console.log('👋 Participant left:', participantId);
                     this.removeParticipant(participantId);
                     this.updateParticipantCount(roomRef);
-                    
-                    // Check if room should be cleaned up
-                    this.checkAndCleanupRoom(roomRef);
                 });
 
                 // Listen for signaling data
@@ -1068,60 +1046,18 @@
                     // Clean up signals after processing
                     setTimeout(() => snapshot.ref.remove(), 5000);
                 });
-
-                // NOW add ourselves to participants (after listeners are set up)
-                const participantRef = roomRef.child('participants').child(this.userId);
-                participantRef.set({
-                    timestamp: Date.now(),
-                    userId: this.userId
-                });
-                
-                // Auto-remove when disconnected
-                participantRef.onDisconnect().remove();
-
-                // Initial participant count
-                this.updateParticipantCount(roomRef);
             }
 
             updateParticipantCount(roomRef) {
                 roomRef.child('participants').once('value', (snap) => {
                     const count = snap.val() ? Object.keys(snap.val()).length : 0;
                     this.participantCount.textContent = count;
-                    console.log(`Room has ${count} participants`);
-                });
-            }
-
-            checkAndCleanupRoom(roomRef) {
-                roomRef.child('participants').once('value', (snap) => {
-                    const participants = snap.val();
-                    const count = participants ? Object.keys(participants).length : 0;
-                    
-                    if (count === 0) {
-                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
-                        roomRef.remove()
-                            .then(() => {
-                                console.log(`✅ Room ${this.roomId} deleted successfully`);
-                            })
-                            .catch((error) => {
-                                console.error(`❌ Failed to delete room ${this.roomId}:`, error);
-                            });
-                    }
                 });
             }
 
             connectToPeer(peerId, initiator = false) {
                 if (this.peers.has(peerId)) {
                     console.log('Connection already exists for peer:', peerId);
-                    return;
-                }
-
-                if (!this.localStream) {
-                    console.log('No local stream yet, delaying connection to:', peerId);
-                    setTimeout(() => {
-                        if (!this.peers.has(peerId) && this.localStream) {
-                            this.connectToPeer(peerId, initiator);
-                        }
-                    }, 1000);
                     return;
                 }
 
@@ -1171,6 +1107,7 @@
 
                     peer.on('error', (err) => {
                         console.error('⚠️ Peer connection error:', peerId, err.message);
+                        // Don't remove immediately, might recover
                     });
 
                     peer.on('connect', () => {
@@ -1188,31 +1125,38 @@
                 // If we don't have this peer yet, create it as non-initiator
                 if (!this.peers.has(signal.from)) {
                     console.log('Creating peer for signal from:', signal.from);
+                    this.connectToPeer(signal.from, false);
                     
-                    // Small delay to ensure peer is ready
+                    // Wait a bit for peer to be created before sending signal
                     setTimeout(() => {
-                        if (!this.peers.has(signal.from)) {
-                            this.connectToPeer(signal.from, false);
-                            
-                            // Wait a bit for peer to be created before sending signal
-                            setTimeout(() => {
-                                const peer = this.peers.get(signal.from);
-                                if (peer) {
-                                    try {
-                                        peer.signal(signal.signal);
-                                    } catch (error) {
-                                        console.error('Error signaling peer:', error);
-                                    }
-                                }
-                            }, 500);
+                        const peer = this.peers.get(signal.from);
+                        if (peer) {
+                            try {
+                                peer.signal(signal.signal);
+                            } catch (error) {
+                                console.error('Error signaling peer:', error);
+                            }
                         }
-                    }, 200);
+                    }, 500);
                 } else {
                     const peer = this.peers.get(signal.from);
                     try {
                         peer.signal(signal.signal);
                     } catch (error) {
                         console.error('Error signaling peer:', error);
+                        // If signaling fails, clean up and try again
+                        this.peers.delete(signal.from);
+                        this.connectToPeer(signal.from, false);
+                        setTimeout(() => {
+                            const newPeer = this.peers.get(signal.from);
+                            if (newPeer) {
+                                try {
+                                    newPeer.signal(signal.signal);
+                                } catch (e) {
+                                    console.error('Retry signaling failed:', e);
+                                }
+                            }
+                        }, 1000);
                     }
                 }
             }
@@ -1245,7 +1189,7 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
 
-                // Handle play() promise correctly
+                // Handle play() promise correctly to avoid AbortError
                 const playPromise = video.play();
 
                 if (playPromise !== undefined) {
@@ -1255,6 +1199,7 @@
                         })
                         .catch(error => {
                             console.error('Remote video play error for', userId, ':', error.name);
+                            // Auto-play was prevented, user interaction might be needed
                         });
                 }
             }
@@ -1408,19 +1353,15 @@
                     this.screenStream = null;
                 }
                 
-                // Remove self and check if room should be deleted
+                // Clean up Firebase
                 if (database && this.roomId) {
-                    const roomRef = database.ref(`rooms/${this.roomId}`);
+                    await database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
                     
-                    // Remove self from participants
-                    await roomRef.child('participants').child(this.userId).remove();
-                    
-                    // Check if room is empty and delete if needed
-                    const participants = await roomRef.child('participants').once('value');
+                    // Check if room is empty
+                    const participants = await database.ref(`rooms/${this.roomId}/participants`).once('value');
                     if (!participants.exists() || participants.numChildren() === 0) {
-                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
-                        await roomRef.remove();
-                        console.log(`✅ Room ${this.roomId} deleted successfully`);
+                        await database.ref(`rooms/${this.roomId}`).remove();
+                        console.log('Room deleted:', this.roomId);
                     }
                 }
                 
