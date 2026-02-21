@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Private Video Call</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1a1a">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2196F3;
+            --danger: #f44336;
+            --bg: #1a1a1a;
+            --surface: #2d2d2d;
+            --text: #ffffff;
+            --text-secondary: #b0b0b0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        /* Page styles - CRITICAL FIX */
+        .page {
+            display: none !important;
+            height: 100% !important;
+            width: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            background: var(--bg) !important;
+        }
+
+        .page.active {
+            display: block !important;
+            z-index: 10 !important;
+        }
+
+        /* Landing Page */
+        #landing-page {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 20px !important;
+        }
+
+        #landing-page:not(.active) {
+            display: none !important;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo img {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .logo .subtitle {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .action-buttons {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .primary-btn, .secondary-btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .primary-btn {
+            background: var(--primary);
+            color: white;
+        }
+
+        .secondary-btn {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid #404040;
+        }
+
+        .primary-btn img, .secondary-btn img {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(1);
+        }
+
+        .or-divider {
+            text-align: center;
+            margin: 20px 0;
+            color: var(--text-secondary);
+        }
+
+        #room-code {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: 16px;
+            text-align: center;
+            border: 1px solid #404040;
+            margin-bottom: 10px;
+        }
+
+        #room-code:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        .info-text {
+            margin-top: 24px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        /* Call Page */
+        #call-page {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            background: var(--bg) !important;
+        }
+
+        #call-page:not(.active) {
+            display: none !important;
+        }
+
+        .call-header {
+            background: var(--surface);
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #404040;
+            flex-shrink: 0;
+        }
+
+        .room-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 16px;
+            border-radius: 40px;
+        }
+
+        .room-code {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .icon-btn img {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(0.7);
+        }
+
+        .participant-count {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 16px;
+            border-radius: 40px;
+        }
+
+        .participant-count img {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(0.7);
+        }
+
+        .participant-count span {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* Video Grid */
+        #video-grid {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px;
+            overflow-y: auto;
+            background: #000;
+            min-height: 0;
+        }
+
+        #video-grid:empty::before {
+            content: 'Waiting for others to join...';
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            width: calc(50% - 4px);
+            border: 2px solid transparent;
+        }
+
+        .video-container:only-child { 
+            width: 100%; 
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+        }
+
+        .participant-name {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.7);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: white;
+        }
+
+        .audio-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .audio-indicator img {
+            width: 18px;
+            height: 18px;
+            filter: brightness(0) invert(1);
+        }
+
+        .audio-indicator.muted { 
+            background: var(--danger); 
+        }
+
+        .local-video { 
+            border-color: var(--primary); 
+        }
+
+        /* Call Controls */
+        .call-controls {
+            background: var(--surface);
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            border-top: 1px solid #404040;
+            flex-shrink: 0;
+        }
+
+        .control-btn {
+            background: none;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            border-radius: 12px;
+            min-width: 70px;
+            flex: 1;
+            max-width: 90px;
+            transition: background 0.2s;
+        }
+
+        .control-btn img {
+            width: 24px;
+            height: 24px;
+            filter: brightness(0) invert(1);
+        }
+
+        .control-btn.active { 
+            background: var(--primary); 
+        }
+
+        .control-btn span { 
+            font-size: 11px; 
+        }
+
+        .control-btn.danger.active { 
+            background: var(--danger); 
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--surface);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin { 
+            to { transform: rotate(360deg); } 
+        }
+
+        #loading-message {
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            z-index: 1001;
+            animation: slideUp 0.3s;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0; 
+                transform: translate(-50%, 20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translate(-50%, 0); 
+            }
+        }
+
+        /* Debug Console */
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.95);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 9999;
+            border-top: 2px solid var(--primary);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 480px) {
+            .video-container { 
+                width: 100%; 
+            }
+            
+            .control-btn { 
+                min-width: 60px; 
+            }
+            
+            .control-btn span { 
+                font-size: 10px; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="debug-console" style="display: none;"></div>
+
+    <div class="container">
+        <!-- Landing Page -->
+        <div id="landing-page" class="page active">
+            <div class="logo">
+                <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Logo">
+                <h1>Private Video Call</h1>
+                <p class="subtitle">Secure, private, and no login required</p>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="create-room" class="primary-btn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1828/1828817.png" alt="+">
+                    Create New Room
+                </button>
+                
+                <div class="or-divider">OR</div>
+                
+                <div class="join-section">
+                    <input type="text" id="room-code" placeholder="Enter 6-digit room code" maxlength="6" value="">
+                    <button id="join-room" class="secondary-btn">
+                        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828814.png" alt="→">
+                        Join Room
+                    </button>
+                </div>
+                
+                <div class="info-text">
+                    Share the room code with others to start a call
+                </div>
+            </div>
+        </div>
+
+        <!-- Call Page -->
+        <div id="call-page" class="page">
+            <div class="call-header">
+                <div class="room-info">
+                    <span>Room:</span>
+                    <span id="current-room" class="room-code">---</span>
+                    <button id="copy-room" class="icon-btn">
+                        <img src="https://cdn-icons-png.flaticon.com/512/1621/1621635.png" alt="Copy">
+                    </button>
+                </div>
+                
+                <div class="participant-count">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1077/1077063.png" alt="Users">
+                    <span id="participant-count">0</span>
+                </div>
+            </div>
+
+            <div id="video-grid"></div>
+
+            <div class="call-controls">
+                <button id="toggle-mute" class="control-btn active">
+                    <img src="https://cdn-icons-png.flaticon.com/512/724/724675.png" alt="Mic">
+                    <span>Mute</span>
+                </button>
+                <button id="toggle-video" class="control-btn active">
+                    <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Cam">
+                    <span>Video</span>
+                </button>
+                <button id="toggle-screen" class="control-btn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1828/1828884.png" alt="Screen">
+                    <span>Screen</span>
+                </button>
+                <button id="leave-call" class="control-btn danger">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png" alt="Leave">
+                    <span>Leave</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p id="loading-message">Connecting...</p>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
+    
+    <script>
+        // Debug console
+        const debugEl = document.getElementById('debug-console');
+        function debug(msg) {
+            console.log(msg);
+            if (debugEl) {
+                debugEl.style.display = 'block';
+                debugEl.innerHTML += `<div>> ${new Date().toLocaleTimeString()} - ${msg}</div>`;
+                debugEl.scrollTop = debugEl.scrollHeight;
+            }
+        }
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDTRGf1kGE2_Kjm457NmRdID0_w_x5h48k",
+            authDomain: "video-9335.firebaseapp.com",
+            databaseURL: "https://video-9335-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "video-9335",
+            storageBucket: "video-9335.firebasestorage.app",
+            messagingSenderId: "438743646214",
+            appId: "1:438743646214:web:db16a9d5c94820845b8387"
+        };
+
+        // Initialize Firebase
+        let database;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            debug('Firebase initialized');
+        } catch (e) {
+            debug('Firebase error: ' + e.message);
+        }
+
+        // Main App Class
+        class VideoCallApp {
+            constructor() {
+                this.localStream = null;
+                this.peers = {};
+                this.roomId = null;
+                this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
+                this.screenStream = null;
+                
+                // Get elements
+                this.landingPage = document.getElementById('landing-page');
+                this.callPage = document.getElementById('call-page');
+                this.createBtn = document.getElementById('create-room');
+                this.joinBtn = document.getElementById('join-room');
+                this.roomInput = document.getElementById('room-code');
+                this.currentRoom = document.getElementById('current-room');
+                this.copyBtn = document.getElementById('copy-room');
+                this.videoGrid = document.getElementById('video-grid');
+                this.participantCount = document.getElementById('participant-count');
+                this.loadingOverlay = document.getElementById('loading-overlay');
+                this.loadingMessage = document.getElementById('loading-message');
+                
+                // Control buttons
+                this.toggleMuteBtn = document.getElementById('toggle-mute');
+                this.toggleVideoBtn = document.getElementById('toggle-video');
+                this.toggleScreenBtn = document.getElementById('toggle-screen');
+                this.leaveBtn = document.getElementById('leave-call');
+                
+                debug('App created');
+                
+                // Bind events
+                this.createBtn.addEventListener('click', () => this.createRoom());
+                this.joinBtn.addEventListener('click', () => this.joinRoom());
+                this.copyBtn.addEventListener('click', () => this.copyRoomCode());
+                this.toggleMuteBtn.addEventListener('click', () => this.toggleAudio());
+                this.toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
+                this.toggleScreenBtn.addEventListener('click', () => this.toggleScreen());
+                this.leaveBtn.addEventListener('click', () => this.leaveCall());
+                
+                this.roomInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.joinRoom();
+                });
+                
+                // Check URL for room
+                this.checkUrl();
+            }
+
+            checkUrl() {
+                const params = new URLSearchParams(window.location.search);
+                const room = params.get('room');
+                if (room) {
+                    debug('Found room in URL: ' + room);
+                    this.roomInput.value = room;
+                    setTimeout(() => this.joinRoom(), 500);
+                }
+            }
+
+            showLoading(show, msg = 'Connecting...') {
+                this.loadingMessage.textContent = msg;
+                this.loadingOverlay.style.display = show ? 'flex' : 'none';
+            }
+
+            showToast(msg) {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = msg;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            }
+
+            async createRoom() {
+                try {
+                    this.roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
+                    debug('Creating room: ' + this.roomId);
+                    
+                    // Update URL
+                    const url = new URL(window.location);
+                    url.searchParams.set('room', this.roomId);
+                    window.history.pushState({}, '', url);
+                    
+                    this.currentRoom.textContent = this.roomId;
+                    
+                    this.showLoading(true, 'Creating room...');
+                    
+                    // Create in Firebase
+                    if (database) {
+                        await database.ref(`rooms/${this.roomId}`).set({
+                            created: Date.now(),
+                            createdBy: this.userId
+                        });
+                        debug('Room created in Firebase');
+                    }
+                    
+                    // Get media
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true
+                            }
+                        });
+                        
+                        this.localStream = stream;
+                        debug('Camera access granted');
+                        
+                        this.addLocalVideo(stream);
+                        
+                    } catch (e) {
+                        debug('Camera error: ' + e.message);
+                        this.showToast('Camera access required');
+                        return;
+                    }
+                    
+                    // SWITCH TO CALL PAGE
+                    debug('Switching to call page...');
+                    this.landingPage.classList.remove('active');
+                    this.callPage.classList.add('active');
+                    debug('Call page should be visible now');
+                    
+                    this.showToast('Room: ' + this.roomId);
+                    
+                    // Setup Firebase listeners
+                    if (database) {
+                        this.setupFirebase();
+                    }
+                    
+                } catch (e) {
+                    debug('Error: ' + e.message);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            async joinRoom() {
+                try {
+                    const code = this.roomInput.value.trim().toUpperCase();
+                    if (!code || code.length !== 6) {
+                        this.showToast('Enter valid 6-digit code');
+                        return;
+                    }
+                    
+                    this.roomId = code;
+                    debug('Joining room: ' + code);
+                    
+                    // Update URL
+                    const url = new URL(window.location);
+                    url.searchParams.set('room', code);
+                    window.history.pushState({}, '', url);
+                    
+                    this.currentRoom.textContent = code;
+                    
+                    this.showLoading(true, 'Joining room...');
+                    
+                    // Get media
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: {
+                                echoCancellation: true,
+                                noiseSuppression: true
+                            }
+                        });
+                        
+                        this.localStream = stream;
+                        debug('Camera access granted');
+                        
+                        this.addLocalVideo(stream);
+                        
+                    } catch (e) {
+                        debug('Camera error: ' + e.message);
+                        this.showToast('Camera access required');
+                        return;
+                    }
+                    
+                    // SWITCH TO CALL PAGE
+                    debug('Switching to call page...');
+                    this.landingPage.classList.remove('active');
+                    this.callPage.classList.add('active');
+                    debug('Call page should be visible now');
+                    
+                    this.showToast('Joined ' + code);
+                    
+                    // Setup Firebase listeners
+                    if (database) {
+                        this.setupFirebase();
+                    }
+                    
+                } catch (e) {
+                    debug('Error: ' + e.message);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            addLocalVideo(stream) {
+                const container = document.createElement('div');
+                container.className = 'video-container local-video';
+                container.id = `container-${this.userId}`;
+                
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.muted = true;
+                
+                const name = document.createElement('span');
+                name.className = 'participant-name';
+                name.textContent = 'You';
+                
+                const audioIndicator = document.createElement('div');
+                audioIndicator.className = 'audio-indicator';
+                audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
+                
+                container.appendChild(video);
+                container.appendChild(name);
+                container.appendChild(audioIndicator);
+                this.videoGrid.appendChild(container);
+                
+                video.play().catch(e => debug('Video play error: ' + e));
+            }
+
+            setupFirebase() {
+                if (!database || !this.roomId) return;
+                
+                debug('Setting up Firebase listeners');
+                
+                const roomRef = database.ref(`rooms/${this.roomId}`);
+                const participantRef = roomRef.child('participants').child(this.userId);
+                
+                participantRef.set({
+                    timestamp: Date.now(),
+                    userId: this.userId
+                });
+                
+                participantRef.onDisconnect().remove();
+                
+                roomRef.child('participants').on('value', (snap) => {
+                    const participants = snap.val() || {};
+                    const count = Object.keys(participants).length;
+                    this.participantCount.textContent = count;
+                    debug('Participants: ' + count);
+                });
+                
+                // Signaling
+                const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
+                
+                signalsRef.on('child_added', (snap) => {
+                    const signal = snap.val();
+                    if (signal.target === this.userId && signal.from !== this.userId) {
+                        this.handleSignal(signal);
+                    }
+                    setTimeout(() => snap.ref.remove(), 30000);
+                });
+                
+                roomRef.child('participants').on('child_removed', (snap) => {
+                    this.removeParticipant(snap.key);
+                });
+                
+                setTimeout(() => this.announcePresence(), 2000);
+            }
+
+            announcePresence() {
+                const participantsRef = database.ref(`rooms/${this.roomId}/participants`);
+                
+                participantsRef.once('value', (snap) => {
+                    const participants = snap.val() || {};
+                    
+                    Object.keys(participants).forEach(pid => {
+                        if (pid !== this.userId) {
+                            debug('Creating peer for: ' + pid);
+                            this.createPeer(pid, true);
+                        }
+                    });
+                });
+            }
+
+            createPeer(targetId, initiator = false) {
+                if (this.peers[targetId]) return;
+                
+                try {
+                    const peer = new SimplePeer({
+                        initiator: initiator,
+                        stream: this.localStream,
+                        trickle: false,
+                        config: {
+                            iceServers: [
+                                { urls: 'stun:stun.l.google.com:19302' },
+                                { urls: 'stun:stun1.l.google.com:19302' }
+                            ]
+                        }
+                    });
+                    
+                    peer.on('signal', (signal) => {
+                        database.ref(`rooms/${this.roomId}/signals`).push({
+                            from: this.userId,
+                            target: targetId,
+                            signal: signal,
+                            timestamp: Date.now()
+                        });
+                    });
+                    
+                    peer.on('stream', (stream) => {
+                        debug('Received stream from: ' + targetId);
+                        this.addRemoteVideo(stream, targetId);
+                    });
+                    
+                    peer.on('close', () => this.removeParticipant(targetId));
+                    peer.on('error', (e) => debug('Peer error: ' + e));
+                    
+                    this.peers[targetId] = peer;
+                    
+                } catch (e) {
+                    debug('Create peer error: ' + e);
+                }
+            }
+
+            handleSignal(signal) {
+                if (signal.signal.type === 'offer' && !this.peers[signal.from]) {
+                    this.createPeer(signal.from, false);
+                }
+                
+                const peer = this.peers[signal.from];
+                if (peer) peer.signal(signal.signal);
+            }
+
+            addRemoteVideo(stream, userId) {
+                if (document.getElementById(`container-${userId}`)) return;
+                
+                const container = document.createElement('div');
+                container.className = 'video-container';
+                container.id = `container-${userId}`;
+                
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                video.autoplay = true;
+                video.playsInline = true;
+                
+                const name = document.createElement('span');
+                name.className = 'participant-name';
+                name.textContent = `User ${userId.substr(-4)}`;
+                
+                const audioIndicator = document.createElement('div');
+                audioIndicator.className = 'audio-indicator';
+                audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
+                
+                container.appendChild(video);
+                container.appendChild(name);
+                container.appendChild(audioIndicator);
+                this.videoGrid.appendChild(container);
+                
+                video.play().catch(e => debug('Remote video error: ' + e));
+            }
+
+            removeParticipant(userId) {
+                if (this.peers[userId]) {
+                    this.peers[userId].destroy();
+                    delete this.peers[userId];
+                }
+                
+                const container = document.getElementById(`container-${userId}`);
+                if (container) container.remove();
+            }
+
+            toggleAudio() {
+                if (this.localStream) {
+                    const track = this.localStream.getAudioTracks()[0];
+                    if (track) {
+                        track.enabled = !track.enabled;
+                        this.toggleMuteBtn.classList.toggle('active', track.enabled);
+                        
+                        const indicator = document.querySelector(`#container-${this.userId} .audio-indicator`);
+                        if (indicator) {
+                            if (!track.enabled) {
+                                indicator.classList.add('muted');
+                                indicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">';
+                            } else {
+                                indicator.classList.remove('muted');
+                                indicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
+                            }
+                        }
+                    }
+                }
+            }
+
+            toggleVideo() {
+                if (this.localStream) {
+                    const track = this.localStream.getVideoTracks()[0];
+                    if (track) {
+                        track.enabled = !track.enabled;
+                        this.toggleVideoBtn.classList.toggle('active', track.enabled);
+                    }
+                }
+            }
+
+            async toggleScreen() {
+                if (this.screenStream) {
+                    this.screenStream.getTracks().forEach(t => t.stop());
+                    this.screenStream = null;
+                    
+                    const videoTrack = this.localStream.getVideoTracks()[0];
+                    if (videoTrack) videoTrack.enabled = true;
+                    
+                    Object.values(this.peers).forEach(peer => {
+                        peer.replaceTrack(videoTrack, this.localStream);
+                    });
+                    
+                    this.toggleScreenBtn.classList.remove('active');
+                    
+                } else {
+                    try {
+                        this.screenStream = await navigator.mediaDevices.getDisplayMedia({
+                            video: true,
+                            audio: false
+                        });
+                        
+                        const screenTrack = this.screenStream.getVideoTracks()[0];
+                        
+                        Object.values(this.peers).forEach(peer => {
+                            peer.replaceTrack(screenTrack, this.screenStream);
+                        });
+                        
+                        screenTrack.onended = () => this.toggleScreen();
+                        this.toggleScreenBtn.classList.add('active');
+                        
+                    } catch (e) {
+                        debug('Screen sharing cancelled');
+                    }
+                }
+            }
+
+            async leaveCall() {
+                this.showLoading(true, 'Leaving call...');
+                
+                Object.values(this.peers).forEach(p => p.destroy());
+                this.peers = {};
+                
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(t => t.stop());
+                    this.localStream = null;
+                }
+                
+                if (this.screenStream) {
+                    this.screenStream.getTracks().forEach(t => t.stop());
+                    this.screenStream = null;
+                }
+                
+                if (database && this.roomId) {
+                    await database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
+                    
+                    const participants = await database.ref(`rooms/${this.roomId}/participants`).once('value');
+                    if (!participants.exists() || participants.numChildren() === 0) {
+                        await database.ref(`rooms/${this.roomId}`).remove();
+                    }
+                }
+                
+                this.videoGrid.innerHTML = '';
+                window.history.replaceState({}, '', window.location.pathname);
+                
+                this.callPage.classList.remove('active');
+                this.landingPage.classList.add('active');
+                
+                this.showLoading(false);
+                this.showToast('Left the call');
+            }
+
+            copyRoomCode() {
+                navigator.clipboard.writeText(this.roomId).then(() => {
+                    this.showToast('Copied!');
+                }).catch(() => {
+                    this.showToast('Room: ' + this.roomId);
+                });
+            }
+        }
+
+        // Start app
+        document.addEventListener('DOMContentLoaded', () => {
+            debug('DOM loaded');
+            new VideoCallApp();
+        });
+    </script>
+</body>
+</html>
