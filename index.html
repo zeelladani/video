@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Private Video Call</title>
+    <title>Private Video Call - Secure & Private</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a1a">
     <style>
         * {
@@ -16,31 +17,37 @@
 
         :root {
             --primary: #2196F3;
+            --primary-dark: #1976D2;
             --danger: #f44336;
+            --success: #4CAF50;
             --bg: #1a1a1a;
             --surface: #2d2d2d;
+            --surface-light: #3d3d3d;
             --text: #ffffff;
             --text-secondary: #b0b0b0;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: var(--bg);
             color: var(--text);
             height: 100vh;
+            height: -webkit-fill-available;
             overflow: hidden;
             position: fixed;
             width: 100%;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .container {
             height: 100vh;
+            height: -webkit-fill-available;
             display: flex;
             flex-direction: column;
             width: 100%;
         }
 
-        /* Page styles - CRITICAL FIX */
+        /* Page styles */
         .page {
             display: none !important;
             height: 100% !important;
@@ -76,54 +83,75 @@
         .logo {
             text-align: center;
             margin-bottom: 40px;
+            animation: fadeInDown 0.6s ease;
         }
 
         .logo img {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 15px;
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 8px 16px rgba(33, 150, 243, 0.3));
         }
 
         .logo h1 {
-            font-size: 24px;
+            font-size: 32px;
             margin-bottom: 8px;
-            color: var(--text);
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .logo .subtitle {
             color: var(--text-secondary);
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .action-buttons {
             width: 100%;
             max-width: 400px;
+            animation: fadeInUp 0.6s ease 0.2s both;
         }
 
         .primary-btn, .secondary-btn {
             width: 100%;
-            padding: 16px;
+            padding: 18px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin: 10px 0;
+            gap: 12px;
+            transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .primary-btn {
             background: var(--primary);
             color: white;
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(33, 150, 243, 0.5);
         }
 
         .secondary-btn {
             background: var(--surface);
             color: var(--text);
-            border: 1px solid #404040;
+            border: 1px solid var(--surface-light);
+        }
+
+        .secondary-btn:hover {
+            background: var(--surface-light);
+        }
+
+        .primary-btn:active, .secondary-btn:active {
+            transform: scale(0.98);
         }
 
         .primary-btn img, .secondary-btn img {
@@ -136,30 +164,60 @@
             text-align: center;
             margin: 20px 0;
             color: var(--text-secondary);
+            position: relative;
+        }
+
+        .or-divider::before,
+        .or-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: calc(50% - 50px);
+            height: 1px;
+            background: var(--surface-light);
+        }
+
+        .or-divider::before { left: 0; }
+        .or-divider::after { right: 0; }
+
+        .join-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         #room-code {
             width: 100%;
-            padding: 16px;
+            padding: 18px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             background: var(--surface);
             color: var(--text);
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
-            border: 1px solid #404040;
-            margin-bottom: 10px;
+            letter-spacing: 2px;
+            font-weight: 600;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
         }
 
         #room-code:focus {
-            outline: 2px solid var(--primary);
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        #room-code::placeholder {
+            color: #666;
+            font-weight: normal;
+            letter-spacing: normal;
+            font-size: 16px;
         }
 
         .info-text {
-            margin-top: 24px;
+            margin-top: 30px;
             text-align: center;
             color: var(--text-secondary);
-            font-size: 13px;
+            font-size: 14px;
         }
 
         /* Call Page */
@@ -168,7 +226,7 @@
             flex-direction: column !important;
             height: 100% !important;
             overflow: hidden !important;
-            background: var(--bg) !important;
+            background: #000 !important;
         }
 
         #call-page:not(.active) {
@@ -176,32 +234,42 @@
         }
 
         .call-header {
-            background: var(--surface);
-            padding: 16px;
+            background: rgba(45, 45, 45, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #404040;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
         }
 
         .room-info {
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: rgba(255,255,255,0.05);
+            gap: 12px;
+            background: rgba(255,255,255,0.1);
             padding: 8px 16px;
             border-radius: 40px;
         }
 
+        .room-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
         .room-code {
             color: var(--primary);
-            font-weight: bold;
+            font-weight: 700;
             font-size: 18px;
+            letter-spacing: 1px;
         }
 
         .icon-btn {
-            background: none;
+            background: rgba(255,255,255,0.15);
             border: none;
             cursor: pointer;
             padding: 8px;
@@ -209,20 +277,28 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255,255,255,0.1);
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
         }
 
         .icon-btn img {
             width: 20px;
             height: 20px;
-            filter: brightness(0) invert(0.7);
+            filter: brightness(0) invert(1);
         }
 
         .participant-count {
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.1);
             padding: 8px 16px;
             border-radius: 40px;
         }
@@ -230,12 +306,13 @@
         .participant-count img {
             width: 20px;
             height: 20px;
-            filter: brightness(0) invert(0.7);
+            filter: brightness(0) invert(0.8);
         }
 
         .participant-count span {
-            font-weight: bold;
+            font-weight: 700;
             color: var(--primary);
+            font-size: 16px;
         }
 
         /* Video Grid */
@@ -243,15 +320,20 @@
             flex: 1;
             display: flex;
             flex-wrap: wrap;
+            align-content: flex-start;
             gap: 8px;
             padding: 8px;
+            padding-left: max(8px, env(safe-area-inset-left));
+            padding-right: max(8px, env(safe-area-inset-right));
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             background: #000;
             min-height: 0;
         }
 
         #video-grid:empty::before {
-            content: 'Waiting for others to join...';
+            content: 'Waiting for others to join...\A\A Share the room code with friends';
+            white-space: pre;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -259,16 +341,22 @@
             height: 100%;
             color: var(--text-secondary);
             font-size: 16px;
+            text-align: center;
+            line-height: 1.6;
+            padding: 20px;
         }
 
         .video-container {
             position: relative;
             background: #1a1a1a;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
             aspect-ratio: 16/9;
             width: calc(50% - 4px);
+            flex-shrink: 0;
             border: 2px solid transparent;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: border-color 0.2s;
         }
 
         .video-container:only-child { 
@@ -280,6 +368,7 @@
             height: 100%;
             object-fit: cover;
             background: #000;
+            pointer-events: none;
         }
 
         .participant-name {
@@ -287,28 +376,36 @@
             bottom: 8px;
             left: 8px;
             background: rgba(0,0,0,0.7);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            color: white;
+            padding: 6px 14px;
+            border-radius: 24px;
+            font-size: 13px;
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
         }
 
         .audio-indicator {
             position: absolute;
             top: 8px;
             right: 8px;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             background: rgba(0,0,0,0.7);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
         }
 
         .audio-indicator img {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             filter: brightness(0) invert(1);
         }
 
@@ -322,12 +419,17 @@
 
         /* Call Controls */
         .call-controls {
-            background: var(--surface);
-            padding: 12px;
+            background: rgba(45, 45, 45, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            padding-left: max(20px, env(safe-area-inset-left));
+            padding-right: max(20px, env(safe-area-inset-right));
+            padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
             display: flex;
             justify-content: center;
-            gap: 12px;
-            border-top: 1px solid #404040;
+            gap: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
         }
 
@@ -339,31 +441,49 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
-            padding: 8px;
-            border-radius: 12px;
+            gap: 6px;
+            padding: 8px 0;
+            border-radius: 16px;
             min-width: 70px;
             flex: 1;
             max-width: 90px;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
         }
 
         .control-btn img {
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             filter: brightness(0) invert(1);
+            transition: all 0.2s;
         }
 
-        .control-btn.active { 
-            background: var(--primary); 
+        .control-btn.active {
+            background: var(--primary);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
         }
 
-        .control-btn span { 
-            font-size: 11px; 
+        .control-btn.danger.active {
+            background: var(--danger);
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
         }
 
-        .control-btn.danger.active { 
-            background: var(--danger); 
+        .control-btn span {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .control-btn.active span {
+            color: white;
         }
 
         /* Loading Overlay */
@@ -373,22 +493,24 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
 
         .spinner {
-            width: 48px;
-            height: 48px;
+            width: 50px;
+            height: 50px;
             border: 4px solid var(--surface);
             border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         @keyframes spin { 
@@ -398,23 +520,31 @@
         #loading-message {
             color: var(--text);
             font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+            padding: 0 20px;
         }
 
         /* Toast */
         .toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: white;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 14px;
+            padding: 14px 28px;
+            border-radius: 40px;
+            font-size: 15px;
+            font-weight: 500;
             z-index: 1001;
-            animation: slideUp 0.3s;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: slideUp 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 90%;
+            text-align: center;
         }
 
         @keyframes slideUp {
@@ -428,24 +558,49 @@
             }
         }
 
-        /* Debug Console */
-        #debug-console {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0,0,0,0.95);
-            color: #0f0;
-            font-family: monospace;
-            font-size: 12px;
-            padding: 10px;
-            max-height: 150px;
-            overflow-y: auto;
-            z-index: 9999;
-            border-top: 2px solid var(--primary);
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        /* Mobile Responsive */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mobile Landscape */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .video-container { 
+                width: calc(33.333% - 6px); 
+            }
+            
+            .control-btn { 
+                min-width: 60px; 
+            }
+            
+            .control-btn span { 
+                font-size: 10px; 
+            }
+            
+            .control-btn img { 
+                width: 24px; 
+                height: 24px; 
+            }
+        }
+
         @media (max-width: 480px) {
             .video-container { 
                 width: 100%; 
@@ -459,38 +614,54 @@
                 font-size: 10px; 
             }
         }
+
+        /* Safe areas */
+        @supports (padding: max(0px)) {
+            .call-header {
+                padding-top: max(12px, env(safe-area-inset-top));
+            }
+            
+            .call-controls {
+                padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="debug-console" style="display: none;"></div>
-
     <div class="container">
         <!-- Landing Page -->
         <div id="landing-page" class="page active">
             <div class="logo">
-                <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Logo">
+                <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Video Call">
                 <h1>Private Video Call</h1>
-                <p class="subtitle">Secure, private, and no login required</p>
+                <p class="subtitle">Secure • Private • No Login</p>
             </div>
             
             <div class="action-buttons">
                 <button id="create-room" class="primary-btn">
-                    <img src="https://cdn-icons-png.flaticon.com/512/1828/1828817.png" alt="+">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1828/1828817.png" alt="Create">
                     Create New Room
                 </button>
                 
                 <div class="or-divider">OR</div>
                 
                 <div class="join-section">
-                    <input type="text" id="room-code" placeholder="Enter 6-digit room code" maxlength="6" value="">
+                    <input 
+                        type="text" 
+                        id="room-code" 
+                        placeholder="Enter 6-digit code" 
+                        maxlength="6" 
+                        autocomplete="off"
+                        inputmode="text"
+                    >
                     <button id="join-room" class="secondary-btn">
-                        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828814.png" alt="→">
+                        <img src="https://cdn-icons-png.flaticon.com/512/1828/1828814.png" alt="Join">
                         Join Room
                     </button>
                 </div>
                 
                 <div class="info-text">
-                    Share the room code with others to start a call
+                    Share the code • Instant connection • Auto cleanup
                 </div>
             </div>
         </div>
@@ -499,15 +670,15 @@
         <div id="call-page" class="page">
             <div class="call-header">
                 <div class="room-info">
-                    <span>Room:</span>
+                    <span class="room-label">Room</span>
                     <span id="current-room" class="room-code">---</span>
-                    <button id="copy-room" class="icon-btn">
+                    <button id="copy-room" class="icon-btn" title="Copy room code">
                         <img src="https://cdn-icons-png.flaticon.com/512/1621/1621635.png" alt="Copy">
                     </button>
                 </div>
                 
                 <div class="participant-count">
-                    <img src="https://cdn-icons-png.flaticon.com/512/1077/1077063.png" alt="Users">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1077/1077063.png" alt="Participants">
                     <span id="participant-count">0</span>
                 </div>
             </div>
@@ -515,19 +686,19 @@
             <div id="video-grid"></div>
 
             <div class="call-controls">
-                <button id="toggle-mute" class="control-btn active">
-                    <img src="https://cdn-icons-png.flaticon.com/512/724/724675.png" alt="Mic">
+                <button id="toggle-mute" class="control-btn active" title="Mute/Unmute">
+                    <img src="https://cdn-icons-png.flaticon.com/512/724/724675.png" alt="Mute">
                     <span>Mute</span>
                 </button>
-                <button id="toggle-video" class="control-btn active">
-                    <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Cam">
+                <button id="toggle-video" class="control-btn active" title="Video on/off">
+                    <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Video">
                     <span>Video</span>
                 </button>
-                <button id="toggle-screen" class="control-btn">
+                <button id="toggle-screen" class="control-btn" title="Share screen">
                     <img src="https://cdn-icons-png.flaticon.com/512/1828/1828884.png" alt="Screen">
                     <span>Screen</span>
                 </button>
-                <button id="leave-call" class="control-btn danger">
+                <button id="leave-call" class="control-btn danger" title="Leave call">
                     <img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png" alt="Leave">
                     <span>Leave</span>
                 </button>
@@ -547,18 +718,7 @@
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
     
     <script>
-        // Debug console
-        const debugEl = document.getElementById('debug-console');
-        function debug(msg) {
-            console.log(msg);
-            if (debugEl) {
-                debugEl.style.display = 'block';
-                debugEl.innerHTML += `<div>> ${new Date().toLocaleTimeString()} - ${msg}</div>`;
-                debugEl.scrollTop = debugEl.scrollHeight;
-            }
-        }
-
-        // Firebase config
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDTRGf1kGE2_Kjm457NmRdID0_w_x5h48k",
             authDomain: "video-9335.firebaseapp.com",
@@ -574,12 +734,12 @@
         try {
             firebase.initializeApp(firebaseConfig);
             database = firebase.database();
-            debug('Firebase initialized');
+            console.log('Firebase initialized');
         } catch (e) {
-            debug('Firebase error: ' + e.message);
+            console.error('Firebase error:', e);
         }
 
-        // Main App Class
+        // Video Call App Class
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
@@ -587,8 +747,16 @@
                 this.roomId = null;
                 this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
                 this.screenStream = null;
+                this.isAudioMuted = false;
+                this.isVideoMuted = false;
                 
-                // Get elements
+                this.initializeElements();
+                this.attachEvents();
+                this.checkUrlForRoom();
+                this.setupConnectionMonitoring();
+            }
+
+            initializeElements() {
                 this.landingPage = document.getElementById('landing-page');
                 this.callPage = document.getElementById('call-page');
                 this.createBtn = document.getElementById('create-room');
@@ -602,112 +770,95 @@
                 this.loadingMessage = document.getElementById('loading-message');
                 
                 // Control buttons
-                this.toggleMuteBtn = document.getElementById('toggle-mute');
-                this.toggleVideoBtn = document.getElementById('toggle-video');
-                this.toggleScreenBtn = document.getElementById('toggle-screen');
+                this.muteBtn = document.getElementById('toggle-mute');
+                this.videoBtn = document.getElementById('toggle-video');
+                this.screenBtn = document.getElementById('toggle-screen');
                 this.leaveBtn = document.getElementById('leave-call');
-                
-                debug('App created');
-                
-                // Bind events
+            }
+
+            attachEvents() {
                 this.createBtn.addEventListener('click', () => this.createRoom());
                 this.joinBtn.addEventListener('click', () => this.joinRoom());
                 this.copyBtn.addEventListener('click', () => this.copyRoomCode());
-                this.toggleMuteBtn.addEventListener('click', () => this.toggleAudio());
-                this.toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
-                this.toggleScreenBtn.addEventListener('click', () => this.toggleScreen());
+                this.muteBtn.addEventListener('click', () => this.toggleAudio());
+                this.videoBtn.addEventListener('click', () => this.toggleVideo());
+                this.screenBtn.addEventListener('click', () => this.toggleScreen());
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
                 
                 this.roomInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.joinRoom();
                 });
-                
-                // Check URL for room
-                this.checkUrl();
             }
 
-            checkUrl() {
+            setupConnectionMonitoring() {
+                if (!database) return;
+                
+                database.ref('.info/connected').on('value', (snap) => {
+                    if (snap.val()) {
+                        console.log('Connected to Firebase');
+                    }
+                });
+            }
+
+            checkUrlForRoom() {
                 const params = new URLSearchParams(window.location.search);
                 const room = params.get('room');
                 if (room) {
-                    debug('Found room in URL: ' + room);
                     this.roomInput.value = room;
                     setTimeout(() => this.joinRoom(), 500);
                 }
             }
 
-            showLoading(show, msg = 'Connecting...') {
-                this.loadingMessage.textContent = msg;
-                this.loadingOverlay.style.display = show ? 'flex' : 'none';
+            updateUrl(roomCode) {
+                const url = new URL(window.location);
+                url.searchParams.set('room', roomCode);
+                window.history.pushState({}, '', url);
             }
 
-            showToast(msg) {
+            showToast(message) {
                 const toast = document.createElement('div');
                 toast.className = 'toast';
-                toast.textContent = msg;
+                toast.textContent = message;
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 2000);
+            }
+
+            showLoading(show, message = 'Connecting...') {
+                this.loadingMessage.textContent = message;
+                this.loadingOverlay.style.display = show ? 'flex' : 'none';
             }
 
             async createRoom() {
                 try {
                     this.roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-                    debug('Creating room: ' + this.roomId);
+                    console.log('Creating room:', this.roomId);
                     
-                    // Update URL
-                    const url = new URL(window.location);
-                    url.searchParams.set('room', this.roomId);
-                    window.history.pushState({}, '', url);
-                    
+                    this.updateUrl(this.roomId);
                     this.currentRoom.textContent = this.roomId;
                     
                     this.showLoading(true, 'Creating room...');
                     
-                    // Create in Firebase
                     if (database) {
                         await database.ref(`rooms/${this.roomId}`).set({
                             created: Date.now(),
                             createdBy: this.userId
                         });
-                        debug('Room created in Firebase');
                     }
                     
-                    // Get media
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: true,
-                            audio: {
-                                echoCancellation: true,
-                                noiseSuppression: true
-                            }
-                        });
-                        
-                        this.localStream = stream;
-                        debug('Camera access granted');
-                        
-                        this.addLocalVideo(stream);
-                        
-                    } catch (e) {
-                        debug('Camera error: ' + e.message);
-                        this.showToast('Camera access required');
-                        return;
-                    }
+                    await this.initializeMedia();
                     
-                    // SWITCH TO CALL PAGE
-                    debug('Switching to call page...');
+                    // Show call page
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
-                    debug('Call page should be visible now');
                     
-                    this.showToast('Room: ' + this.roomId);
+                    this.setupFirebaseListeners();
                     
-                    // Setup Firebase listeners
-                    if (database) {
-                        this.setupFirebase();
-                    }
+                    this.showToast(`Room: ${this.roomId}`);
+                    setTimeout(() => this.copyRoomCode(), 1000);
                     
-                } catch (e) {
-                    debug('Error: ' + e.message);
+                } catch (error) {
+                    console.error('Create room error:', error);
+                    this.showToast('Failed to create room');
                 } finally {
                     this.showLoading(false);
                 }
@@ -715,72 +866,84 @@
 
             async joinRoom() {
                 try {
-                    const code = this.roomInput.value.trim().toUpperCase();
-                    if (!code || code.length !== 6) {
+                    const roomCode = this.roomInput.value.trim().toUpperCase();
+                    if (!roomCode || roomCode.length !== 6) {
                         this.showToast('Enter valid 6-digit code');
                         return;
                     }
                     
-                    this.roomId = code;
-                    debug('Joining room: ' + code);
+                    console.log('Joining room:', roomCode);
                     
-                    // Update URL
-                    const url = new URL(window.location);
-                    url.searchParams.set('room', code);
-                    window.history.pushState({}, '', url);
-                    
-                    this.currentRoom.textContent = code;
+                    this.roomId = roomCode;
+                    this.updateUrl(roomCode);
+                    this.currentRoom.textContent = roomCode;
                     
                     this.showLoading(true, 'Joining room...');
                     
-                    // Get media
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: true,
-                            audio: {
-                                echoCancellation: true,
-                                noiseSuppression: true
-                            }
-                        });
+                    if (database) {
+                        const roomRef = database.ref(`rooms/${roomCode}`);
+                        const snapshot = await roomRef.once('value');
                         
-                        this.localStream = stream;
-                        debug('Camera access granted');
-                        
-                        this.addLocalVideo(stream);
-                        
-                    } catch (e) {
-                        debug('Camera error: ' + e.message);
-                        this.showToast('Camera access required');
-                        return;
+                        if (!snapshot.exists()) {
+                            await roomRef.set({
+                                created: Date.now(),
+                                createdBy: this.userId
+                            });
+                        }
                     }
                     
-                    // SWITCH TO CALL PAGE
-                    debug('Switching to call page...');
+                    await this.initializeMedia();
+                    
+                    // Show call page
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
-                    debug('Call page should be visible now');
                     
-                    this.showToast('Joined ' + code);
+                    this.setupFirebaseListeners();
                     
-                    // Setup Firebase listeners
-                    if (database) {
-                        this.setupFirebase();
-                    }
+                    this.showToast(`Joined ${roomCode}`);
                     
-                } catch (e) {
-                    debug('Error: ' + e.message);
+                } catch (error) {
+                    console.error('Join room error:', error);
+                    this.showToast('Failed to join room');
                 } finally {
                     this.showLoading(false);
                 }
             }
 
-            addLocalVideo(stream) {
+            async initializeMedia() {
+                try {
+                    const constraints = {
+                        video: {
+                            width: { ideal: 1280, max: 1920 },
+                            height: { ideal: 720, max: 1080 },
+                            facingMode: 'user'
+                        },
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    };
+                    
+                    this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    console.log('Media initialized');
+                    
+                    this.addLocalVideo();
+                    
+                } catch (error) {
+                    console.error('Media error:', error);
+                    this.showToast('Camera/Microphone access required');
+                    throw error;
+                }
+            }
+
+            addLocalVideo() {
                 const container = document.createElement('div');
                 container.className = 'video-container local-video';
                 container.id = `container-${this.userId}`;
                 
                 const video = document.createElement('video');
-                video.srcObject = stream;
+                video.srcObject = this.localStream;
                 video.autoplay = true;
                 video.playsInline = true;
                 video.muted = true;
@@ -798,17 +961,18 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
                 
-                video.play().catch(e => debug('Video play error: ' + e));
+                video.play().catch(e => console.log('Video play error:', e));
             }
 
-            setupFirebase() {
+            setupFirebaseListeners() {
                 if (!database || !this.roomId) return;
                 
-                debug('Setting up Firebase listeners');
+                console.log('Setting up Firebase listeners');
                 
                 const roomRef = database.ref(`rooms/${this.roomId}`);
                 const participantRef = roomRef.child('participants').child(this.userId);
                 
+                // Add self to participants
                 participantRef.set({
                     timestamp: Date.now(),
                     userId: this.userId
@@ -816,48 +980,50 @@
                 
                 participantRef.onDisconnect().remove();
                 
-                roomRef.child('participants').on('value', (snap) => {
-                    const participants = snap.val() || {};
+                // Listen for participant changes
+                roomRef.child('participants').on('value', (snapshot) => {
+                    const participants = snapshot.val() || {};
                     const count = Object.keys(participants).length;
                     this.participantCount.textContent = count;
-                    debug('Participants: ' + count);
+                    
+                    // If alone, show waiting message
+                    if (count === 1) {
+                        // Still alone
+                    }
                 });
                 
-                // Signaling
+                // Listen for new participants to connect to
+                roomRef.child('participants').on('child_added', (snapshot) => {
+                    const participantId = snapshot.key;
+                    if (participantId !== this.userId && !this.peers[participantId]) {
+                        console.log('New participant:', participantId);
+                        this.connectToPeer(participantId, true);
+                    }
+                });
+                
+                // Listen for signaling data
                 const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
                 
-                signalsRef.on('child_added', (snap) => {
-                    const signal = snap.val();
+                signalsRef.on('child_added', (snapshot) => {
+                    const signal = snapshot.val();
                     if (signal.target === this.userId && signal.from !== this.userId) {
                         this.handleSignal(signal);
                     }
-                    setTimeout(() => snap.ref.remove(), 30000);
+                    // Clean up old signals
+                    setTimeout(() => snapshot.ref.remove(), 30000);
                 });
                 
-                roomRef.child('participants').on('child_removed', (snap) => {
-                    this.removeParticipant(snap.key);
-                });
-                
-                setTimeout(() => this.announcePresence(), 2000);
-            }
-
-            announcePresence() {
-                const participantsRef = database.ref(`rooms/${this.roomId}/participants`);
-                
-                participantsRef.once('value', (snap) => {
-                    const participants = snap.val() || {};
-                    
-                    Object.keys(participants).forEach(pid => {
-                        if (pid !== this.userId) {
-                            debug('Creating peer for: ' + pid);
-                            this.createPeer(pid, true);
-                        }
-                    });
+                // Listen for participants leaving
+                roomRef.child('participants').on('child_removed', (snapshot) => {
+                    const participantId = snapshot.key;
+                    this.removeParticipant(participantId);
                 });
             }
 
-            createPeer(targetId, initiator = false) {
-                if (this.peers[targetId]) return;
+            connectToPeer(peerId, initiator = false) {
+                if (this.peers[peerId]) return;
+                
+                console.log('Connecting to peer:', peerId, 'initiator:', initiator);
                 
                 try {
                     const peer = new SimplePeer({
@@ -867,42 +1033,64 @@
                         config: {
                             iceServers: [
                                 { urls: 'stun:stun.l.google.com:19302' },
-                                { urls: 'stun:stun1.l.google.com:19302' }
+                                { urls: 'stun:stun1.l.google.com:19302' },
+                                { urls: 'stun:stun2.l.google.com:19302' },
+                                { urls: 'stun:stun3.l.google.com:19302' },
+                                { urls: 'stun:stun4.l.google.com:19302' },
+                                {
+                                    urls: 'turn:openrelay.metered.ca:80',
+                                    username: 'openrelayproject',
+                                    credential: 'openrelayproject'
+                                }
                             ]
                         }
                     });
                     
                     peer.on('signal', (signal) => {
-                        database.ref(`rooms/${this.roomId}/signals`).push({
-                            from: this.userId,
-                            target: targetId,
-                            signal: signal,
-                            timestamp: Date.now()
-                        });
+                        if (database && this.roomId) {
+                            database.ref(`rooms/${this.roomId}/signals`).push({
+                                from: this.userId,
+                                target: peerId,
+                                signal: signal,
+                                timestamp: Date.now()
+                            });
+                        }
                     });
                     
                     peer.on('stream', (stream) => {
-                        debug('Received stream from: ' + targetId);
-                        this.addRemoteVideo(stream, targetId);
+                        console.log('Received stream from:', peerId);
+                        this.addRemoteVideo(stream, peerId);
                     });
                     
-                    peer.on('close', () => this.removeParticipant(targetId));
-                    peer.on('error', (e) => debug('Peer error: ' + e));
+                    peer.on('close', () => {
+                        console.log('Peer closed:', peerId);
+                        this.removeParticipant(peerId);
+                    });
                     
-                    this.peers[targetId] = peer;
+                    peer.on('error', (err) => {
+                        console.error('Peer error:', err);
+                    });
                     
-                } catch (e) {
-                    debug('Create peer error: ' + e);
+                    peer.on('connect', () => {
+                        console.log('Peer connected:', peerId);
+                    });
+                    
+                    this.peers[peerId] = peer;
+                    
+                } catch (error) {
+                    console.error('Connection error:', error);
                 }
             }
 
             handleSignal(signal) {
                 if (signal.signal.type === 'offer' && !this.peers[signal.from]) {
-                    this.createPeer(signal.from, false);
+                    this.connectToPeer(signal.from, false);
                 }
                 
                 const peer = this.peers[signal.from];
-                if (peer) peer.signal(signal.signal);
+                if (peer) {
+                    peer.signal(signal.signal);
+                }
             }
 
             addRemoteVideo(stream, userId) {
@@ -930,7 +1118,9 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
                 
-                video.play().catch(e => debug('Remote video error: ' + e));
+                video.play().catch(e => console.log('Remote video error:', e));
+                
+                this.updateVideoGridLayout();
             }
 
             removeParticipant(userId) {
@@ -941,18 +1131,29 @@
                 
                 const container = document.getElementById(`container-${userId}`);
                 if (container) container.remove();
+                
+                this.updateVideoGridLayout();
+            }
+
+            updateVideoGridLayout() {
+                const containers = document.querySelectorAll('.video-container');
+                const count = containers.length;
+                
+                // CSS grid will handle layout automatically
+                // Just trigger reflow
+                this.videoGrid.offsetHeight;
             }
 
             toggleAudio() {
                 if (this.localStream) {
-                    const track = this.localStream.getAudioTracks()[0];
-                    if (track) {
-                        track.enabled = !track.enabled;
-                        this.toggleMuteBtn.classList.toggle('active', track.enabled);
+                    const audioTrack = this.localStream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        audioTrack.enabled = !audioTrack.enabled;
+                        this.isAudioMuted = !audioTrack.enabled;
                         
                         const indicator = document.querySelector(`#container-${this.userId} .audio-indicator`);
                         if (indicator) {
-                            if (!track.enabled) {
+                            if (this.isAudioMuted) {
                                 indicator.classList.add('muted');
                                 indicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">';
                             } else {
@@ -960,36 +1161,65 @@
                                 indicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
                             }
                         }
+                        
+                        if (this.isAudioMuted) {
+                            this.muteBtn.classList.remove('active');
+                        } else {
+                            this.muteBtn.classList.add('active');
+                        }
+                        
+                        this.showToast(this.isAudioMuted ? 'Mic muted' : 'Mic unmuted');
                     }
                 }
             }
 
             toggleVideo() {
                 if (this.localStream) {
-                    const track = this.localStream.getVideoTracks()[0];
-                    if (track) {
-                        track.enabled = !track.enabled;
-                        this.toggleVideoBtn.classList.toggle('active', track.enabled);
+                    const videoTrack = this.localStream.getVideoTracks()[0];
+                    if (videoTrack) {
+                        videoTrack.enabled = !videoTrack.enabled;
+                        this.isVideoMuted = !videoTrack.enabled;
+                        
+                        if (this.isVideoMuted) {
+                            this.videoBtn.classList.remove('active');
+                        } else {
+                            this.videoBtn.classList.add('active');
+                        }
+                        
+                        this.showToast(this.isVideoMuted ? 'Video paused' : 'Video resumed');
                     }
                 }
             }
 
             async toggleScreen() {
                 if (this.screenStream) {
-                    this.screenStream.getTracks().forEach(t => t.stop());
+                    // Stop screen sharing
+                    this.screenStream.getTracks().forEach(track => track.stop());
                     this.screenStream = null;
                     
+                    // Restore camera
                     const videoTrack = this.localStream.getVideoTracks()[0];
-                    if (videoTrack) videoTrack.enabled = true;
+                    if (videoTrack) {
+                        videoTrack.enabled = true;
+                    }
                     
+                    // Update all peers
                     Object.values(this.peers).forEach(peer => {
-                        peer.replaceTrack(videoTrack, this.localStream);
+                        if (peer) {
+                            try {
+                                peer.replaceTrack(videoTrack, this.localStream);
+                            } catch (e) {
+                                console.error('Replace track error:', e);
+                            }
+                        }
                     });
                     
-                    this.toggleScreenBtn.classList.remove('active');
+                    this.screenBtn.classList.remove('active');
+                    this.showToast('Screen sharing stopped');
                     
                 } else {
                     try {
+                        // Start screen sharing
                         this.screenStream = await navigator.mediaDevices.getDisplayMedia({
                             video: true,
                             audio: false
@@ -997,15 +1227,24 @@
                         
                         const screenTrack = this.screenStream.getVideoTracks()[0];
                         
+                        // Update all peers
                         Object.values(this.peers).forEach(peer => {
-                            peer.replaceTrack(screenTrack, this.screenStream);
+                            if (peer) {
+                                try {
+                                    peer.replaceTrack(screenTrack, this.screenStream);
+                                } catch (e) {
+                                    console.error('Replace with screen error:', e);
+                                }
+                            }
                         });
                         
                         screenTrack.onended = () => this.toggleScreen();
-                        this.toggleScreenBtn.classList.add('active');
                         
-                    } catch (e) {
-                        debug('Screen sharing cancelled');
+                        this.screenBtn.classList.add('active');
+                        this.showToast('Screen sharing started');
+                        
+                    } catch (error) {
+                        console.log('Screen sharing cancelled');
                     }
                 }
             }
@@ -1013,31 +1252,52 @@
             async leaveCall() {
                 this.showLoading(true, 'Leaving call...');
                 
-                Object.values(this.peers).forEach(p => p.destroy());
+                // Close all peer connections
+                Object.values(this.peers).forEach(peer => {
+                    try {
+                        peer.destroy();
+                    } catch (e) {}
+                });
                 this.peers = {};
                 
+                // Stop local media
                 if (this.localStream) {
-                    this.localStream.getTracks().forEach(t => t.stop());
+                    this.localStream.getTracks().forEach(track => {
+                        try {
+                            track.stop();
+                        } catch (e) {}
+                    });
                     this.localStream = null;
                 }
                 
+                // Stop screen sharing
                 if (this.screenStream) {
-                    this.screenStream.getTracks().forEach(t => t.stop());
+                    this.screenStream.getTracks().forEach(track => {
+                        try {
+                            track.stop();
+                        } catch (e) {}
+                    });
                     this.screenStream = null;
                 }
                 
+                // Clean up Firebase
                 if (database && this.roomId) {
                     await database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
                     
+                    // Check if room is empty
                     const participants = await database.ref(`rooms/${this.roomId}/participants`).once('value');
                     if (!participants.exists() || participants.numChildren() === 0) {
                         await database.ref(`rooms/${this.roomId}`).remove();
                     }
                 }
                 
+                // Clear video grid
                 this.videoGrid.innerHTML = '';
+                
+                // Clear URL
                 window.history.replaceState({}, '', window.location.pathname);
                 
+                // Return to landing page
                 this.callPage.classList.remove('active');
                 this.landingPage.classList.add('active');
                 
@@ -1046,17 +1306,26 @@
             }
 
             copyRoomCode() {
+                if (!this.roomId) return;
+                
                 navigator.clipboard.writeText(this.roomId).then(() => {
-                    this.showToast('Copied!');
+                    this.showToast('Code copied!');
                 }).catch(() => {
-                    this.showToast('Room: ' + this.roomId);
+                    // Fallback
+                    const textarea = document.createElement('textarea');
+                    textarea.value = this.roomId;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    this.showToast('Code copied!');
                 });
             }
         }
 
-        // Start app
+        // Start the app
         document.addEventListener('DOMContentLoaded', () => {
-            debug('DOM loaded');
+            console.log('DOM loaded, starting app...');
             new VideoCallApp();
         });
     </script>
