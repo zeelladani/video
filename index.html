@@ -784,24 +784,13 @@
 
         // Initialize Firebase
         let database;
-        let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
-
-        function initializeFirebase() {
-            try {
-                if (!database) {
-                    firebase.initializeApp(firebaseConfig);
-                    database = firebase.database();
-                    console.log('Firebase initialized successfully');
-                }
-                return true;
-            } catch (e) {
-                console.error('Firebase initialization error:', e);
-                return false;
-            }
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            console.log('Firebase initialized successfully');
+        } catch (e) {
+            console.error('Firebase initialization error:', e);
         }
-
-        initializeFirebase();
 
         // Constants
         const ROOM_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours
@@ -820,15 +809,12 @@
                 this.hasMultipleCameras = false;
                 
                 this.cleanupInterval = null;
-                this.connectionCheckInterval = null;
-                this.isReconnecting = false;
                 
                 this.initializeElements();
                 this.attachEvents();
                 this.checkUrlForRoom();
                 this.setupConnectionMonitoring();
                 this.startCleanupScheduler();
-                this.startConnectionChecker();
             }
 
             initializeElements() {
@@ -875,70 +861,12 @@
                         console.log('✅ Connected to Firebase');
                         this.connectionStatus.textContent = 'Connected';
                         this.connectionStatus.className = 'connection-status connected';
-                        reconnectAttempts = 0;
-                        this.isReconnecting = false;
-                        
-                        // If we were in a call, re-establish presence
-                        if (this.callPage.classList.contains('active') && this.roomId) {
-                            this.resumeSession();
-                        }
                     } else {
                         console.log('❌ Disconnected from Firebase');
                         this.connectionStatus.textContent = 'Disconnected';
                         this.connectionStatus.className = 'connection-status disconnected';
                     }
                 });
-            }
-
-            startConnectionChecker() {
-                this.connectionCheckInterval = setInterval(() => {
-                    if (database && typeof database.ref === 'function') {
-                        const connectedRef = database.ref('.info/connected');
-                        connectedRef.once('value').catch(() => {
-                            if (!this.isReconnecting) {
-                                this.handleDisconnect();
-                            }
-                        });
-                    }
-                }, 5000);
-            }
-
-            handleDisconnect() {
-                if (this.isReconnecting) return;
-                this.isReconnecting = true;
-                
-                console.log('Attempting to reconnect to Firebase...');
-                this.showToast('Connection lost. Reconnecting...');
-                
-                // Try to reinitialize Firebase
-                if (reconnectAttempts < maxReconnectAttempts) {
-                    reconnectAttempts++;
-                    setTimeout(() => {
-                        try {
-                            initializeFirebase();
-                            if (database) {
-                                this.setupConnectionMonitoring();
-                                if (this.callPage.classList.contains('active') && this.roomId) {
-                                    this.resumeSession();
-                                }
-                            }
-                        } catch (e) {
-                            console.error('Reconnection failed:', e);
-                        }
-                    }, 2000 * reconnectAttempts);
-                } else {
-                    this.showToast('Unable to reconnect. Please refresh the page.');
-                }
-            }
-
-            async resumeSession() {
-                console.log('Resuming session in room:', this.roomId);
-                
-                // Re-add self to participants
-                if (database && this.roomId) {
-                    const participantRef = database.ref(`rooms/${this.roomId}/participants/${this.userId}`);
-                    await participantRef.set({ timestamp: Date.now(), userId: this.userId });
-                }
             }
 
             checkUrlForRoom() {
@@ -1426,9 +1354,12 @@
 
             addRemoteVideo(stream, userId) {
                 if (document.getElementById(`container-${userId}`)) {
+                    console.log('Video container already exists for:', userId);
                     return;
                 }
 
+                console.log('Adding remote video for user:', userId);
+                
                 const container = document.createElement('div');
                 container.className = 'video-container';
                 container.id = `container-${userId}`;
@@ -1437,6 +1368,10 @@
                 video.srcObject = stream;
                 video.autoplay = true;
                 video.playsInline = true;
+
+                // Important: Set these attributes for iOS
+                video.setAttribute('playsinline', 'true');
+                video.setAttribute('webkit-playsinline', 'true');
 
                 const name = document.createElement('span');
                 name.className = 'participant-name';
@@ -1451,10 +1386,24 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
 
-                video.play().catch(error => {
-                    if (error.name !== 'AbortError') {
-                        console.error('Remote video play error for', userId, ':', error.name);
-                    }
+                // Force video to play
+                const playVideo = () => {
+                    video.play()
+                        .then(() => {
+                            console.log('Remote video playing for:', userId);
+                        })
+                        .catch(error => {
+                            console.log('Remote video play error for', userId, ':', error.name);
+                            // Retry after a short delay
+                            setTimeout(playVideo, 1000);
+                        });
+                };
+                
+                playVideo();
+
+                // Also add an event listener for when video can play
+                video.addEventListener('canplay', () => {
+                    video.play().catch(() => {});
                 });
             }
 
@@ -1651,9 +1600,6 @@
         window.addEventListener('beforeunload', () => {
             if (window.app && window.app.cleanupInterval) {
                 clearInterval(window.app.cleanupInterval);
-            }
-            if (window.app && window.app.connectionCheckInterval) {
-                clearInterval(window.app.connectionCheckInterval);
             }
         });
     </script>
