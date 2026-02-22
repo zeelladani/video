@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Private Video Call - Fixed</title>
+    <title>Private Video Call - Device Error Handling</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a1a">
     <style>
-        /* [Keep all existing CSS exactly as in the previous version] */
+        /* [Keep all existing CSS exactly as before] */
         * {
             margin: 0;
             padding: 0;
@@ -48,6 +48,126 @@
             display: flex;
             flex-direction: column;
             width: 100%;
+        }
+
+        /* Device Error Modal */
+        .device-error-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .device-error-modal.show {
+            display: flex;
+        }
+
+        .device-error-content {
+            background: var(--surface);
+            border-radius: 24px;
+            padding: 30px;
+            max-width: 400px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .device-error-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .device-error-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--danger);
+        }
+
+        .device-error-message {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .device-error-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .device-error-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .device-error-btn.primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .device-error-btn.secondary {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .device-error-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Device Check Animation */
+        .device-checking {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2500;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .device-checking.show {
+            display: flex;
+        }
+
+        .device-checking-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--surface);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        .device-checking-text {
+            font-size: 18px;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .device-checking-subtext {
+            font-size: 14px;
+            color: var(--text-secondary);
         }
 
         /* Connection Status */
@@ -1060,6 +1180,28 @@
     </style>
 </head>
 <body>
+    <!-- Device Error Modal -->
+    <div id="device-error-modal" class="device-error-modal">
+        <div class="device-error-content">
+            <div class="device-error-icon">🎥❌</div>
+            <div class="device-error-title">Camera & Microphone Required</div>
+            <div class="device-error-message" id="device-error-message">
+                No camera or microphone detected. Please connect a camera and microphone to join the call.
+            </div>
+            <div class="device-error-buttons">
+                <button id="device-retry-btn" class="device-error-btn primary">Try Again</button>
+                <button id="device-cancel-btn" class="device-error-btn secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Checking -->
+    <div id="device-checking" class="device-checking">
+        <div class="device-checking-spinner"></div>
+        <div class="device-checking-text">Checking for camera and microphone...</div>
+        <div class="device-checking-subtext">Please ensure devices are connected</div>
+    </div>
+
     <!-- Connection Status -->
     <div id="connection-status" class="connection-status">
         🔌 Connection lost. Reconnecting...
@@ -1212,7 +1354,6 @@
                 }
                 database = firebase.database();
                 
-                // Monitor connection state
                 database.ref('.info/connected').on('value', (snap) => {
                     const connected = snap.val();
                     isFirebaseConnected = connected;
@@ -1298,7 +1439,7 @@
 
         initFirebase();
 
-        // Video Call App Class with Fixed WebRTC Signaling
+        // Video Call App Class with Device Error Handling
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
@@ -1311,8 +1452,8 @@
                 this.chatMessages = [];
                 this.connectionQuality = new Map();
                 this.isReconnecting = false;
-                this.pendingSignals = new Map(); // Store signals per peer
-                this.processedSignals = new Set(); // Track processed signals to avoid duplicates
+                this.pendingSignals = new Map();
+                this.processedSignals = new Set();
                 this.firebaseListeners = [];
                 this.pageVisible = true;
                 this.reconnectAttempts = 0;
@@ -1321,7 +1462,14 @@
                 this.reconnectBanner = document.getElementById('reconnection-banner');
                 this.reconnectBtn = document.getElementById('reconnect-btn');
                 this.connectionStatus = document.getElementById('connection-status');
-                this.peerConnectionStates = new Map(); // Track connection states
+                this.deviceErrorModal = document.getElementById('device-error-modal');
+                this.deviceChecking = document.getElementById('device-checking');
+                this.deviceRetryBtn = document.getElementById('device-retry-btn');
+                this.deviceCancelBtn = document.getElementById('device-cancel-btn');
+                this.deviceErrorMessage = document.getElementById('device-error-message');
+                this.hasDevices = false;
+                this.deviceCheckAttempts = 0;
+                this.maxDeviceCheckAttempts = 3;
                 
                 this.initializeElements();
                 this.attachEvents();
@@ -1331,9 +1479,41 @@
                 this.checkForActiveSession();
                 this.loadUserPreferences();
                 
-                this.autoRestoreSession();
+                // Check for devices on startup
+                this.checkDevices();
                 
                 console.log('App initialized with ID:', this.userId);
+            }
+
+            async checkDevices() {
+                this.deviceChecking.classList.add('show');
+                
+                try {
+                    // First check if any media devices exist
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const hasVideo = devices.some(device => device.kind === 'videoinput');
+                    const hasAudio = devices.some(device => device.kind === 'audioinput');
+                    
+                    this.hasDevices = hasVideo && hasAudio;
+                    
+                    if (!this.hasDevices) {
+                        this.showDeviceError('No camera or microphone detected. Please connect a camera and microphone.');
+                    }
+                } catch (err) {
+                    console.error('Error checking devices:', err);
+                    this.showDeviceError('Unable to access media devices. Please check permissions.');
+                } finally {
+                    this.deviceChecking.classList.remove('show');
+                }
+            }
+
+            showDeviceError(message) {
+                this.deviceErrorMessage.textContent = message;
+                this.deviceErrorModal.classList.add('show');
+            }
+
+            hideDeviceError() {
+                this.deviceErrorModal.classList.remove('show');
             }
 
             getOrCreateUserId() {
@@ -1621,6 +1801,16 @@
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
                 this.reconnectBtn.addEventListener('click', () => this.forceReconnect());
                 
+                // Device error modal buttons
+                this.deviceRetryBtn.addEventListener('click', () => {
+                    this.hideDeviceError();
+                    this.checkDevices();
+                });
+                
+                this.deviceCancelBtn.addEventListener('click', () => {
+                    this.hideDeviceError();
+                });
+                
                 this.toggleChatBtn.addEventListener('click', () => this.toggleChat());
                 this.closeChatBtn.addEventListener('click', () => this.toggleChat());
                 this.sendChatBtn.addEventListener('click', () => this.sendMessage());
@@ -1680,6 +1870,12 @@
             }
 
             async createRoom() {
+                // Check devices first
+                if (!this.hasDevices) {
+                    this.showDeviceError('No camera or microphone detected. Please connect a camera and microphone.');
+                    return;
+                }
+                
                 try {
                     this.roomId = Math.floor(1000 + Math.random() * 9000).toString();
                     console.log('🚀 Creating room:', this.roomId);
@@ -1696,7 +1892,11 @@
                         });
                     }
                     
-                    await this.initializeMedia();
+                    const mediaSuccess = await this.initializeMedia();
+                    if (!mediaSuccess) {
+                        this.showLoading(false);
+                        return;
+                    }
                     
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
@@ -1720,6 +1920,12 @@
             }
 
             async joinRoom(isReconnect = false) {
+                // Check devices first (unless reconnecting)
+                if (!isReconnect && !this.hasDevices) {
+                    this.showDeviceError('No camera or microphone detected. Please connect a camera and microphone.');
+                    return;
+                }
+                
                 try {
                     const roomCode = this.roomInput.value.trim();
                     if (!roomCode || !/^\d{4}$/.test(roomCode)) {
@@ -1749,7 +1955,13 @@
                         }
                     }
                     
-                    await this.initializeMedia();
+                    const mediaSuccess = await this.initializeMedia();
+                    if (!mediaSuccess) {
+                        if (!isReconnect) {
+                            this.showLoading(false);
+                        }
+                        return;
+                    }
                     
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
@@ -1773,28 +1985,44 @@
 
             async initializeMedia() {
                 try {
+                    // First check if we can get any media devices
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const hasVideo = devices.some(device => device.kind === 'videoinput');
+                    const hasAudio = devices.some(device => device.kind === 'audioinput');
+                    
+                    if (!hasVideo && !hasAudio) {
+                        this.showDeviceError('No camera or microphone found. Please connect devices and try again.');
+                        return false;
+                    }
+                    
                     const constraints = {
-                        video: {
+                        video: hasVideo ? {
                             width: { ideal: 1280, max: 1920 },
                             height: { ideal: 720, max: 1080 },
                             facingMode: 'user'
-                        },
-                        audio: {
+                        } : false,
+                        audio: hasAudio ? {
                             echoCancellation: true,
                             noiseSuppression: true,
                             autoGainControl: true
-                        }
+                        } : false
                     };
+                    
+                    // If no video, we can still proceed with audio only
+                    if (!hasVideo) {
+                        this.showToast('ℹ️ No camera detected. Audio only mode.', 'reconnect');
+                    }
                     
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
                     console.log('🎥 Media initialized successfully');
                     
-                    if (this.isAudioMuted) {
+                    // Apply saved mute states
+                    if (this.isAudioMuted && hasAudio) {
                         const audioTrack = this.localStream.getAudioTracks()[0];
                         if (audioTrack) audioTrack.enabled = false;
                     }
                     
-                    if (this.isVideoMuted) {
+                    if (this.isVideoMuted && hasVideo) {
                         const videoTrack = this.localStream.getVideoTracks()[0];
                         if (videoTrack) videoTrack.enabled = false;
                     }
@@ -1807,39 +2035,24 @@
                     });
                     
                     this.addLocalVideo();
+                    this.hasDevices = true;
+                    return true;
                     
                 } catch (error) {
                     console.error('Media initialization error:', error);
                     
-                    try {
-                        this.localStream = await navigator.mediaDevices.getUserMedia({
-                            video: true,
-                            audio: true
-                        });
-                        console.log('📹 Media initialized with basic constraints');
-                        
-                        if (this.isAudioMuted) {
-                            const audioTrack = this.localStream.getAudioTracks()[0];
-                            if (audioTrack) audioTrack.enabled = false;
-                        }
-                        
-                        if (this.isVideoMuted) {
-                            const videoTrack = this.localStream.getVideoTracks()[0];
-                            if (videoTrack) videoTrack.enabled = false;
-                        }
-                        
-                        this.localStream.getTracks().forEach(track => {
-                            track.onended = () => {
-                                console.log(`Track ended: ${track.kind}`);
-                                this.handleTrackEnded(track.kind);
-                            };
-                        });
-                        
-                        this.addLocalVideo();
-                    } catch (fallbackError) {
-                        this.showToast('❌ Camera and microphone access is required');
-                        throw error;
+                    // Handle different types of errors
+                    if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                        this.showDeviceError('No camera or microphone found. Please connect devices and try again.');
+                    } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                        this.showDeviceError('Camera and microphone access denied. Please allow permissions and try again.');
+                    } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                        this.showDeviceError('Camera or microphone is busy. Please close other apps using them.');
+                    } else {
+                        this.showDeviceError('Unable to access camera/microphone: ' + error.message);
                     }
+                    
+                    return false;
                 }
             }
 
@@ -1926,17 +2139,23 @@
                 }
                 
                 try {
-                    const newStream = await navigator.mediaDevices.getUserMedia({
-                        video: true,
-                        audio: true
-                    });
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const hasVideo = devices.some(device => device.kind === 'videoinput');
+                    const hasAudio = devices.some(device => device.kind === 'audioinput');
                     
-                    if (this.isAudioMuted) {
+                    const constraints = {
+                        video: hasVideo ? true : false,
+                        audio: hasAudio ? true : false
+                    };
+                    
+                    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    if (this.isAudioMuted && hasAudio) {
                         const audioTrack = newStream.getAudioTracks()[0];
                         if (audioTrack) audioTrack.enabled = false;
                     }
                     
-                    if (this.isVideoMuted) {
+                    if (this.isVideoMuted && hasVideo) {
                         const videoTrack = newStream.getVideoTracks()[0];
                         if (videoTrack) videoTrack.enabled = false;
                     }
@@ -2003,7 +2222,9 @@
             addLocalVideo() {
                 const container = document.createElement('div');
                 container.className = 'video-container local-video';
-                if (this.isVideoMuted) container.classList.add('video-off');
+                if (this.isVideoMuted || !this.localStream.getVideoTracks().length) {
+                    container.classList.add('video-off');
+                }
                 container.id = `container-${this.userId}`;
                 
                 const video = document.createElement('video');
@@ -2018,12 +2239,19 @@
                 
                 const name = document.createElement('span');
                 name.className = 'participant-name';
-                name.innerHTML = 'You <span class="reconnect-badge" style="display:none;">🔄</span>';
+                
+                // Show if in audio-only mode
+                if (!this.localStream.getVideoTracks().length) {
+                    name.innerHTML = 'You (Audio Only) <span class="reconnect-badge" style="display:none;">🔄</span>';
+                } else {
+                    name.innerHTML = 'You <span class="reconnect-badge" style="display:none;">🔄</span>';
+                }
+                
                 this.localNameBadge = name.querySelector('.reconnect-badge');
                 
                 const audioIndicator = document.createElement('div');
                 audioIndicator.className = 'audio-indicator';
-                if (this.isAudioMuted) {
+                if (this.isAudioMuted || !this.localStream.getAudioTracks().length) {
                     audioIndicator.classList.add('muted');
                     audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">';
                 } else {
@@ -2045,13 +2273,20 @@
                 container.appendChild(pipBtn);
                 this.videoGrid.appendChild(container);
                 
-                if (this.isAudioMuted) {
+                // Update button states based on available tracks
+                if (!this.localStream.getAudioTracks().length) {
+                    this.muteBtn.style.opacity = '0.5';
+                    this.muteBtn.style.pointerEvents = 'none';
+                } else if (this.isAudioMuted) {
                     this.muteBtn.classList.remove('active');
                 } else {
                     this.muteBtn.classList.add('active');
                 }
                 
-                if (this.isVideoMuted) {
+                if (!this.localStream.getVideoTracks().length) {
+                    this.videoBtn.style.opacity = '0.5';
+                    this.videoBtn.style.pointerEvents = 'none';
+                } else if (this.isVideoMuted) {
                     this.videoBtn.classList.remove('active');
                 } else {
                     this.videoBtn.classList.add('active');
@@ -2146,16 +2381,13 @@
                 const onSignalAdded = signalsRef.on('child_added', (snapshot) => {
                     const signal = snapshot.val();
                     
-                    // Generate unique ID for this signal to avoid duplicates
                     const signalId = `${signal.from}-${signal.timestamp}-${signal.signal.type}`;
                     
                     if (signal.target === this.userId && signal.from !== this.userId && !this.processedSignals.has(signalId)) {
                         console.log('📨 Received signal from:', signal.from, 'type:', signal.signal.type);
                         
-                        // Mark as processed
                         this.processedSignals.add(signalId);
                         
-                        // Clean up old processed signals (keep last 100)
                         if (this.processedSignals.size > 100) {
                             const iterator = this.processedSignals.values();
                             this.processedSignals.delete(iterator.next().value);
@@ -2249,7 +2481,6 @@
                                 timestamp: Date.now()
                             });
                         } else {
-                            // Queue signals if Firebase is disconnected
                             signalQueue.push(signal);
                         }
                     });
@@ -2259,7 +2490,6 @@
                         this.reconnectAttempts = 0;
                         isReady = true;
                         
-                        // Send queued signals
                         if (signalQueue.length > 0) {
                             signalQueue.forEach(signal => {
                                 if (database && this.roomId && isFirebaseConnected) {
@@ -2274,7 +2504,6 @@
                             signalQueue = [];
                         }
                         
-                        // Start quality monitoring
                         const qualityInterval = setInterval(() => {
                             if (this.peers.has(peerId)) {
                                 const quality = Math.floor(Math.random() * 4) + 1;
@@ -2297,12 +2526,10 @@
 
                     peer.on('error', (err) => {
                         console.error('⚠️ Peer connection error:', peerId, err.message);
-                        // Don't immediately reconnect on error, let the close handler handle it
                     });
 
                     this.peers.set(peerId, peer);
                     
-                    // Store any pending signals for this peer
                     if (this.pendingSignals.has(peerId)) {
                         const signals = this.pendingSignals.get(peerId);
                         signals.forEach(signal => {
@@ -2326,13 +2553,11 @@
 
             handleSignal(signal) {
                 if (!this.peers.has(signal.from)) {
-                    // Store signal for when peer is created
                     if (!this.pendingSignals.has(signal.from)) {
                         this.pendingSignals.set(signal.from, []);
                     }
                     this.pendingSignals.get(signal.from).push(signal.signal);
                     
-                    // Create peer if it doesn't exist
                     setTimeout(() => {
                         if (!this.peers.has(signal.from)) {
                             this.connectToPeer(signal.from, false);
@@ -2348,7 +2573,6 @@
                 } catch (error) {
                     console.error('Error signaling peer:', error);
                     
-                    // If signaling fails, recreate peer
                     if (error.message.includes('wrong state')) {
                         console.log('Signaling state error, recreating peer');
                         this.reconnectPeer(signal.from);
