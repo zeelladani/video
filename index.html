@@ -68,6 +68,41 @@
             display: block;
         }
 
+        /* Reconnection Banner */
+        .reconnection-banner {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--warning);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1500;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .reconnection-banner.show {
+            display: flex;
+        }
+
+        .reconnection-banner button {
+            background: white;
+            border: none;
+            color: var(--warning);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         /* Page styles */
         .page {
             display: none !important;
@@ -913,6 +948,12 @@
         ⚠️ HTTPS is required for video calls. Please access this page via HTTPS.
     </div>
 
+    <!-- Reconnection Banner -->
+    <div id="reconnection-banner" class="reconnection-banner">
+        <span>Video stream interrupted. </span>
+        <button id="reconnect-btn">Reconnect</button>
+    </div>
+
     <div class="container">
         <!-- Landing Page -->
         <div id="landing-page" class="page active">
@@ -1062,6 +1103,13 @@
                 this.isInitialized = false;
                 this.chatMessages = [];
                 this.connectionQuality = new Map(); // Track connection quality per peer
+                
+                // Stream monitoring properties
+                this.streamHealthInterval = null;
+                this.streamHealthy = true;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 3;
+                this.reconnectTimeout = null;
                 
                 this.initializeElements();
                 this.attachEvents();
@@ -1250,6 +1298,8 @@
                 this.participantCount = document.getElementById('participant-count');
                 this.loadingOverlay = document.getElementById('loading-overlay');
                 this.loadingMessage = document.getElementById('loading-message');
+                this.reconnectionBanner = document.getElementById('reconnection-banner');
+                this.reconnectBtn = document.getElementById('reconnect-btn');
                 
                 // Control buttons
                 this.muteBtn = document.getElementById('toggle-mute');
@@ -1272,6 +1322,7 @@
                 this.muteBtn.addEventListener('click', () => this.toggleAudio());
                 this.videoBtn.addEventListener('click', () => this.toggleVideo());
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
+                this.reconnectBtn.addEventListener('click', () => this.forceReconnect());
                 
                 // Chat events
                 this.toggleChatBtn.addEventListener('click', () => this.toggleChat());
@@ -1299,6 +1350,7 @@
                         console.log('✅ Connected to Firebase');
                     } else {
                         console.log('❌ Disconnected from Firebase');
+                        this.showReconnectionBanner('Firebase connection lost');
                     }
                 });
             }
@@ -1331,6 +1383,16 @@
                 this.loadingOverlay.style.display = show ? 'flex' : 'none';
             }
 
+            showReconnectionBanner(message) {
+                const banner = this.reconnectionBanner.querySelector('span');
+                banner.textContent = message + ' ';
+                this.reconnectionBanner.classList.add('show');
+            }
+
+            hideReconnectionBanner() {
+                this.reconnectionBanner.classList.remove('show');
+            }
+
             async createRoom() {
                 try {
                     // Generate 4-digit random number
@@ -1360,6 +1422,9 @@
                     
                     // Set active session cookie
                     this.setActiveSession(this.roomId);
+                    
+                    // Start stream health monitoring
+                    this.startStreamHealthMonitoring();
                     
                     this.isInitialized = true;
                     
@@ -1414,6 +1479,9 @@
                     // Set active session cookie
                     this.setActiveSession(roomCode);
                     
+                    // Start stream health monitoring
+                    this.startStreamHealthMonitoring();
+                    
                     this.isInitialized = true;
                     
                     this.showToast(`Joined room: ${roomCode}`);
@@ -1455,6 +1523,22 @@
                         if (videoTrack) videoTrack.enabled = false;
                     }
                     
+                    // Add listeners for track ended events
+                    this.localStream.getTracks().forEach(track => {
+                        track.onended = () => {
+                            console.log(`Track ended: ${track.kind}`);
+                            this.handleTrackEnded(track.kind);
+                        };
+                        
+                        track.onmute = () => {
+                            console.log(`Track muted: ${track.kind}`);
+                        };
+                        
+                        track.onunmute = () => {
+                            console.log(`Track unmuted: ${track.kind}`);
+                        };
+                    });
+                    
                     // Add local video to grid
                     this.addLocalVideo();
                     
@@ -1480,12 +1564,222 @@
                             if (videoTrack) videoTrack.enabled = false;
                         }
                         
+                        // Add listeners for track ended events
+                        this.localStream.getTracks().forEach(track => {
+                            track.onended = () => {
+                                console.log(`Track ended: ${track.kind}`);
+                                this.handleTrackEnded(track.kind);
+                            };
+                        });
+                        
                         this.addLocalVideo();
                     } catch (fallbackError) {
                         this.showToast('Camera and microphone access is required');
                         throw error;
                     }
                 }
+            }
+
+            handleTrackEnded(trackKind) {
+                console.log(`Handling ended ${trackKind} track`);
+                this.showReconnectionBanner(`${trackKind} stream ended`);
+                
+                // Attempt to reconnect
+                this.attemptReconnection();
+            }
+
+            startStreamHealthMonitoring() {
+                // Clear any existing interval
+                if (this.streamHealthInterval) {
+                    clearInterval(this.streamHealthInterval);
+                }
+                
+                // Check stream health every 10 seconds
+                this.streamHealthInterval = setInterval(() => {
+                    this.checkStreamHealth();
+                }, 10000);
+            }
+
+            checkStreamHealth() {
+                if (!this.localStream) {
+                    console.log('No local stream, health check failed');
+                    this.streamHealthy = false;
+                    this.showReconnectionBanner('No video stream');
+                    this.attemptReconnection();
+                    return;
+                }
+                
+                const videoTrack = this.localStream.getVideoTracks()[0];
+                const audioTrack = this.localStream.getAudioTracks()[0];
+                
+                // Check if tracks are still active
+                if ((videoTrack && !videoTrack.enabled) || (audioTrack && !audioTrack.enabled)) {
+                    // This is normal if user muted
+                    this.streamHealthy = true;
+                    this.hideReconnectionBanner();
+                    return;
+                }
+                
+                // Check if tracks are still ready
+                if ((videoTrack && videoTrack.readyState !== 'live') || 
+                    (audioTrack && audioTrack.readyState !== 'live')) {
+                    console.log('Stream health check failed - tracks not live');
+                    this.streamHealthy = false;
+                    this.showReconnectionBanner('Stream quality degraded');
+                    this.attemptReconnection();
+                } else {
+                    this.streamHealthy = true;
+                    this.hideReconnectionBanner();
+                    this.reconnectAttempts = 0; // Reset reconnect attempts on healthy stream
+                }
+            }
+
+            async attemptReconnection() {
+                if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                    console.log('Max reconnection attempts reached');
+                    this.showToast('Unable to recover stream. Please refresh the page.');
+                    return;
+                }
+                
+                this.reconnectAttempts++;
+                console.log(`Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+                
+                // Clear any existing reconnect timeout
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                }
+                
+                // Wait a bit before attempting reconnection
+                this.reconnectTimeout = setTimeout(async () => {
+                    try {
+                        await this.reinitializeMedia();
+                    } catch (error) {
+                        console.error('Reconnection failed:', error);
+                        this.attemptReconnection(); // Try again
+                    }
+                }, 2000 * this.reconnectAttempts); // Exponential backoff
+            }
+
+            async forceReconnect() {
+                console.log('Manual reconnection triggered');
+                this.showLoading(true, 'Reconnecting...');
+                this.reconnectAttempts = 0;
+                await this.reinitializeMedia();
+                this.showLoading(false);
+            }
+
+            async reinitializeMedia() {
+                console.log('Reinitializing media...');
+                
+                // Stop existing tracks
+                if (this.localStream) {
+                    this.localStream.getTracks().forEach(track => {
+                        try {
+                            track.stop();
+                        } catch (e) {}
+                    });
+                }
+                
+                try {
+                    // Request new stream
+                    const constraints = {
+                        video: {
+                            width: { ideal: 1280, max: 1920 },
+                            height: { ideal: 720, max: 1080 },
+                            facingMode: 'user'
+                        },
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    };
+                    
+                    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    // Apply saved mute states
+                    if (this.isAudioMuted) {
+                        const audioTrack = newStream.getAudioTracks()[0];
+                        if (audioTrack) audioTrack.enabled = false;
+                    }
+                    
+                    if (this.isVideoMuted) {
+                        const videoTrack = newStream.getVideoTracks()[0];
+                        if (videoTrack) videoTrack.enabled = false;
+                    }
+                    
+                    // Add listeners for new tracks
+                    newStream.getTracks().forEach(track => {
+                        track.onended = () => {
+                            console.log(`New track ended: ${track.kind}`);
+                            this.handleTrackEnded(track.kind);
+                        };
+                    });
+                    
+                    // Update local video element
+                    const localContainer = document.getElementById(`container-${this.userId}`);
+                    if (localContainer) {
+                        const video = localContainer.querySelector('video');
+                        if (video) {
+                            video.srcObject = newStream;
+                            video.play().catch(e => console.error('Error playing video:', e));
+                        }
+                    }
+                    
+                    // Update all peers with new tracks
+                    this.peers.forEach((peer, peerId) => {
+                        if (peer) {
+                            try {
+                                // Replace tracks in peer connection
+                                newStream.getTracks().forEach(track => {
+                                    const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === track.kind);
+                                    if (sender) {
+                                        sender.replaceTrack(track);
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('Error updating peer tracks:', e);
+                                // If can't update, recreate connection
+                                this.reconnectPeer(peerId);
+                            }
+                        }
+                    });
+                    
+                    this.localStream = newStream;
+                    this.streamHealthy = true;
+                    this.hideReconnectionBanner();
+                    this.showToast('Stream recovered successfully');
+                    
+                    console.log('Media reinitialized successfully');
+                    
+                } catch (error) {
+                    console.error('Failed to reinitialize media:', error);
+                    throw error;
+                }
+            }
+
+            reconnectPeer(peerId) {
+                console.log('Reconnecting to peer:', peerId);
+                
+                // Destroy old peer connection
+                if (this.peers.has(peerId)) {
+                    const oldPeer = this.peers.get(peerId);
+                    try {
+                        oldPeer.destroy();
+                    } catch (e) {}
+                    this.peers.delete(peerId);
+                }
+                
+                // Remove video container
+                const container = document.getElementById(`container-${peerId}`);
+                if (container) {
+                    container.remove();
+                }
+                
+                // Create new connection
+                setTimeout(() => {
+                    this.connectToPeer(peerId, true);
+                }, 1000);
             }
 
             addLocalVideo() {
@@ -1750,6 +2044,9 @@
                         }
                     });
 
+                    let iceConnectionState = 'new';
+                    let connectionState = 'new';
+
                     peer.on('signal', (signal) => {
                         if (database && this.roomId) {
                             console.log('📤 Sending signal to:', peerId, 'type:', signal.type);
@@ -1774,15 +2071,39 @@
 
                     peer.on('error', (err) => {
                         console.error('⚠️ Peer connection error:', peerId, err.message);
+                        // Attempt to reconnect on error
+                        setTimeout(() => {
+                            if (this.roomId && this.localStream) {
+                                this.reconnectPeer(peerId);
+                            }
+                        }, 2000);
                     });
 
                     peer.on('connect', () => {
                         console.log('✅ Peer connection established:', peerId);
+                        // Reset reconnect attempts on successful connection
+                        this.reconnectAttempts = 0;
+                        
                         // Simulate connection quality (in real app, you'd measure actual stats)
                         setInterval(() => {
                             const quality = Math.floor(Math.random() * 4) + 1; // 1-4
                             this.updateConnectionQuality(peerId, quality);
                         }, 5000);
+                    });
+
+                    // Monitor ICE connection state
+                    peer.on('iceStateChange', (state) => {
+                        iceConnectionState = state;
+                        console.log(`ICE state for ${peerId}:`, state);
+                        
+                        if (state === 'failed' || state === 'disconnected') {
+                            console.log(`ICE connection ${state} for ${peerId}, attempting recovery...`);
+                            setTimeout(() => {
+                                if (this.roomId && this.localStream && !this.peers.has(peerId)) {
+                                    this.reconnectPeer(peerId);
+                                }
+                            }, 3000);
+                        }
                     });
 
                     this.peers.set(peerId, peer);
@@ -1825,6 +2146,14 @@
             addRemoteVideo(stream, userId) {
                 if (document.getElementById(`container-${userId}`)) {
                     console.log('Video container already exists for:', userId);
+                    
+                    // Update existing video element with new stream
+                    const container = document.getElementById(`container-${userId}`);
+                    const video = container.querySelector('video');
+                    if (video && video.srcObject !== stream) {
+                        video.srcObject = stream;
+                        video.play().catch(e => console.error('Error playing video:', e));
+                    }
                     return;
                 }
 
@@ -1876,6 +2205,11 @@
                         })
                         .catch(error => {
                             console.error('Remote video play error for', userId, ':', error.name);
+                            
+                            // Retry playing after a short delay
+                            setTimeout(() => {
+                                video.play().catch(e => console.log('Retry play failed:', e));
+                            }, 1000);
                         });
                 }
             }
@@ -2013,6 +2347,17 @@
             async leaveCall(clearAllCookies = true) {
                 this.showLoading(true, 'Leaving call...');
                 
+                // Stop stream monitoring
+                if (this.streamHealthInterval) {
+                    clearInterval(this.streamHealthInterval);
+                    this.streamHealthInterval = null;
+                }
+                
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                    this.reconnectTimeout = null;
+                }
+                
                 // Close all peer connections
                 this.peers.forEach((peer) => {
                     try {
@@ -2068,6 +2413,9 @@
                 
                 // Close chat panel
                 this.chatPanel.classList.remove('open');
+                
+                // Hide reconnection banner
+                this.hideReconnectionBanner();
                 
                 // Clear URL
                 window.history.replaceState({}, '', window.location.pathname);
