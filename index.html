@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#2B2D42">
+    <meta name="theme-color" content="#1a1a1a">
     <style>
         * {
             margin: 0;
@@ -16,16 +16,15 @@
         }
 
         :root {
-            --primary: #2B2D42;
-            --primary-light: #8D99AE;
-            --secondary: #EDF2F4;
+            --primary: #2196F3;
+            --primary-dark: #1976D2;
             --danger: #f44336;
             --success: #4CAF50;
             --bg: #1a1a1a;
-            --surface: #2B2D42;
-            --surface-light: #8D99AE;
-            --text: #EDF2F4;
-            --text-secondary: #8D99AE;
+            --surface: #2d2d2d;
+            --surface-light: #3d3d3d;
+            --text: #ffffff;
+            --text-secondary: #b0b0b0;
         }
 
         body {
@@ -77,6 +76,10 @@
             padding: 20px !important;
         }
 
+        #landing-page:not(.active) {
+            display: none !important;
+        }
+
         .logo {
             text-align: center;
             margin-bottom: 40px;
@@ -87,13 +90,13 @@
             width: 100px;
             height: 100px;
             margin-bottom: 20px;
-            filter: drop-shadow(0 8px 16px rgba(43, 45, 66, 0.4));
+            filter: drop-shadow(0 8px 16px rgba(33, 150, 243, 0.3));
         }
 
         .logo h1 {
             font-size: 32px;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, var(--secondary) 0%, var(--primary-light) 100%);
+            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -128,23 +131,23 @@
 
         .primary-btn {
             background: var(--primary);
-            color: var(--secondary);
-            box-shadow: 0 8px 20px rgba(43, 45, 66, 0.4);
+            color: white;
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4);
         }
 
         .primary-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(43, 45, 66, 0.5);
+            box-shadow: 0 12px 24px rgba(33, 150, 243, 0.5);
         }
 
         .secondary-btn {
-            background: var(--surface-light);
-            color: var(--primary);
-            border: 1px solid var(--primary);
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--surface-light);
         }
 
         .secondary-btn:hover {
-            background: var(--primary-light);
+            background: var(--surface-light);
         }
 
         .primary-btn:active, .secondary-btn:active {
@@ -155,10 +158,6 @@
             width: 20px;
             height: 20px;
             filter: brightness(0) invert(1);
-        }
-
-        .secondary-btn img {
-            filter: none;
         }
 
         .or-divider {
@@ -193,7 +192,7 @@
             border: none;
             border-radius: 14px;
             background: var(--surface);
-            color: var(--secondary);
+            color: var(--text);
             font-size: 18px;
             text-align: center;
             letter-spacing: 2px;
@@ -204,11 +203,11 @@
 
         #room-code:focus {
             outline: none;
-            border-color: var(--primary-light);
+            border-color: var(--primary);
         }
 
         #room-code::placeholder {
-            color: var(--text-secondary);
+            color: #666;
             font-weight: normal;
             letter-spacing: normal;
             font-size: 16px;
@@ -235,7 +234,7 @@
         }
 
         .call-header {
-            background: var(--surface);
+            background: rgba(45, 45, 45, 0.95);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px 20px;
@@ -244,7 +243,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--primary-light);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
         }
 
@@ -252,7 +251,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            background: rgba(141, 153, 174, 0.2);
+            background: rgba(255,255,255,0.1);
             padding: 8px 16px;
             border-radius: 40px;
         }
@@ -263,14 +262,14 @@
         }
 
         .room-code {
-            color: var(--secondary);
+            color: var(--primary);
             font-weight: 700;
             font-size: 18px;
             letter-spacing: 1px;
         }
 
         .icon-btn {
-            background: rgba(141, 153, 174, 0.3);
+            background: rgba(255,255,255,0.15);
             border: none;
             cursor: pointer;
             padding: 8px;
@@ -282,7 +281,7 @@
         }
 
         .icon-btn:hover {
-            background: rgba(141, 153, 174, 0.5);
+            background: rgba(255,255,255,0.25);
         }
 
         .icon-btn:active {
@@ -299,7 +298,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(141, 153, 174, 0.2);
+            background: rgba(255,255,255,0.1);
             padding: 8px 16px;
             border-radius: 40px;
         }
@@ -307,12 +306,12 @@
         .participant-count img {
             width: 20px;
             height: 20px;
-            filter: brightness(0) invert(1);
+            filter: brightness(0) invert(0.8);
         }
 
         .participant-count span {
             font-weight: 700;
-            color: var(--secondary);
+            color: var(--primary);
             font-size: 16px;
         }
 
@@ -349,7 +348,7 @@
 
         .video-container {
             position: relative;
-            background: var(--surface);
+            background: #1a1a1a;
             border-radius: 16px;
             overflow: hidden;
             aspect-ratio: 16/9;
@@ -372,24 +371,22 @@
             pointer-events: none;
         }
 
-        /* Mirror effect for local video - only for front camera */
-        .local-video.front-camera video {
-            transform: scaleX(-1);
+        .local-video video {
+            transform: scaleX(-1); /* Mirror effect for local video */
         }
 
         .participant-name {
             position: absolute;
             bottom: 8px;
             left: 8px;
-            background: var(--primary);
+            background: rgba(0,0,0,0.7);
             padding: 6px 14px;
             border-radius: 24px;
             font-size: 13px;
             font-weight: 500;
-            color: var(--secondary);
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
-            border: 1px solid var(--primary-light);
+            border: 1px solid rgba(255,255,255,0.1);
             z-index: 10;
         }
 
@@ -399,14 +396,14 @@
             right: 8px;
             width: 36px;
             height: 36px;
-            background: var(--primary);
+            background: rgba(0,0,0,0.7);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
-            border: 1px solid var(--primary-light);
+            border: 1px solid rgba(255,255,255,0.1);
             z-index: 10;
         }
 
@@ -421,12 +418,12 @@
         }
 
         .local-video { 
-            border-color: var(--secondary); 
+            border-color: var(--primary); 
         }
 
         /* Call Controls */
         .call-controls {
-            background: var(--surface);
+            background: rgba(45, 45, 45, 0.95);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px 20px;
@@ -436,15 +433,14 @@
             display: flex;
             justify-content: center;
             gap: 16px;
-            border-top: 1px solid var(--primary-light);
+            border-top: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
-            flex-wrap: wrap;
         }
 
         .control-btn {
             background: none;
             border: none;
-            color: var(--secondary);
+            color: var(--text);
             cursor: pointer;
             display: flex;
             flex-direction: column;
@@ -460,8 +456,7 @@
         }
 
         .control-btn:hover {
-            background: var(--primary-light);
-            color: var(--primary);
+            background: rgba(255,255,255,0.1);
         }
 
         .control-btn:active {
@@ -476,31 +471,23 @@
         }
 
         .control-btn.active {
-            background: var(--primary-light);
-            color: var(--primary);
-        }
-
-        .control-btn.active img {
-            filter: none;
+            background: var(--primary);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
         }
 
         .control-btn.danger.active {
             background: var(--danger);
-            color: white;
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
         }
 
         .control-btn span {
             font-size: 11px;
             font-weight: 500;
+            color: var(--text-secondary);
         }
 
-        /* Camera switch button specific */
-        #switch-camera {
-            background: rgba(141, 153, 174, 0.2);
-        }
-
-        #switch-camera.active {
-            background: var(--primary-light);
+        .control-btn.active span {
+            color: white;
         }
 
         /* Loading Overlay */
@@ -510,7 +497,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(43, 45, 66, 0.95);
+            background: rgba(0,0,0,0.95);
             display: none;
             flex-direction: column;
             align-items: center;
@@ -523,8 +510,8 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid var(--surface-light);
-            border-top-color: var(--secondary);
+            border: 4px solid var(--surface);
+            border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
@@ -535,7 +522,7 @@
         }
 
         #loading-message {
-            color: var(--secondary);
+            color: var(--text);
             font-size: 16px;
             font-weight: 500;
             text-align: center;
@@ -548,8 +535,8 @@
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--primary);
-            color: var(--secondary);
+            background: rgba(0,0,0,0.9);
+            color: white;
             padding: 14px 28px;
             border-radius: 40px;
             font-size: 15px;
@@ -559,7 +546,7 @@
             -webkit-backdrop-filter: blur(8px);
             animation: slideUp 0.3s ease;
             box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-            border: 1px solid var(--primary-light);
+            border: 1px solid rgba(255,255,255,0.1);
             max-width: 90%;
             text-align: center;
         }
@@ -630,11 +617,6 @@
             .control-btn span { 
                 font-size: 10px; 
             }
-
-            .call-controls {
-                gap: 8px;
-                padding: 8px 12px;
-            }
         }
 
         /* Safe areas */
@@ -647,36 +629,9 @@
                 padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
             }
         }
-
-        /* Connection Status */
-        .connection-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            z-index: 100;
-            display: none;
-        }
-
-        .connection-status.connected {
-            background: var(--success);
-            color: white;
-            display: block;
-        }
-
-        .connection-status.disconnected {
-            background: var(--danger);
-            color: white;
-            display: block;
-        }
     </style>
 </head>
 <body>
-    <div id="connection-status" class="connection-status">Connected</div>
-
     <div class="container">
         <!-- Landing Page -->
         <div id="landing-page" class="page active">
@@ -710,7 +665,7 @@
                 </div>
                 
                 <div class="info-text">
-                    Share the code • Instant connection • Auto cleanup after 24h
+                    Share the code • Instant connection • Auto cleanup
                 </div>
             </div>
         </div>
@@ -742,10 +697,6 @@
                 <button id="toggle-video" class="control-btn active" title="Video on/off">
                     <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Video">
                     <span>Video</span>
-                </button>
-                <button id="switch-camera" class="control-btn" title="Switch camera" style="display: none;">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2917/2917996.png" alt="Switch Camera">
-                    <span>Camera</span>
                 </button>
                 <button id="toggle-screen" class="control-btn" title="Share screen">
                     <img src="https://cdn-icons-png.flaticon.com/512/1828/1828884.png" alt="Screen">
@@ -787,34 +738,26 @@
         try {
             firebase.initializeApp(firebaseConfig);
             database = firebase.database();
-            console.log('Firebase initialized successfully');
+            console.log('Firebase initialized');
         } catch (e) {
             console.error('Firebase initialization error:', e);
         }
 
-        // Constants
-        const ROOM_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours
-
+        // Video Call App Class
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
-                this.peers = new Map();
+                this.peers = {};
                 this.roomId = null;
                 this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
                 this.screenStream = null;
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
                 
-                this.currentFacingMode = 'user';
-                this.hasMultipleCameras = false;
-                
-                this.cleanupInterval = null;
-                
                 this.initializeElements();
                 this.attachEvents();
                 this.checkUrlForRoom();
                 this.setupConnectionMonitoring();
-                this.startCleanupScheduler();
             }
 
             initializeElements() {
@@ -829,11 +772,10 @@
                 this.participantCount = document.getElementById('participant-count');
                 this.loadingOverlay = document.getElementById('loading-overlay');
                 this.loadingMessage = document.getElementById('loading-message');
-                this.connectionStatus = document.getElementById('connection-status');
                 
+                // Control buttons
                 this.muteBtn = document.getElementById('toggle-mute');
                 this.videoBtn = document.getElementById('toggle-video');
-                this.switchCameraBtn = document.getElementById('switch-camera');
                 this.screenBtn = document.getElementById('toggle-screen');
                 this.leaveBtn = document.getElementById('leave-call');
             }
@@ -844,7 +786,6 @@
                 this.copyBtn.addEventListener('click', () => this.copyRoomCode());
                 this.muteBtn.addEventListener('click', () => this.toggleAudio());
                 this.videoBtn.addEventListener('click', () => this.toggleVideo());
-                this.switchCameraBtn.addEventListener('click', () => this.switchCamera());
                 this.screenBtn.addEventListener('click', () => this.toggleScreen());
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
                 
@@ -858,13 +799,9 @@
                 
                 database.ref('.info/connected').on('value', (snap) => {
                     if (snap.val()) {
-                        console.log('✅ Connected to Firebase');
-                        this.connectionStatus.textContent = 'Connected';
-                        this.connectionStatus.className = 'connection-status connected';
+                        console.log('Connected to Firebase');
                     } else {
-                        console.log('❌ Disconnected from Firebase');
-                        this.connectionStatus.textContent = 'Disconnected';
-                        this.connectionStatus.className = 'connection-status disconnected';
+                        console.log('Disconnected from Firebase');
                     }
                 });
             }
@@ -897,41 +834,10 @@
                 this.loadingOverlay.style.display = show ? 'flex' : 'none';
             }
 
-            startCleanupScheduler() {
-                this.cleanupInterval = setInterval(() => {
-                    this.cleanupOldRooms();
-                }, 60 * 60 * 1000);
-                this.cleanupOldRooms();
-            }
-
-            async cleanupOldRooms() {
-                if (!database) return;
-                
-                const now = Date.now();
-                const roomsRef = database.ref('rooms');
-                
-                try {
-                    const snapshot = await roomsRef.once('value');
-                    const rooms = snapshot.val();
-                    
-                    if (!rooms) return;
-                    
-                    Object.keys(rooms).forEach(roomId => {
-                        const room = rooms[roomId];
-                        if (room.created && (now - room.created) > ROOM_EXPIRY_TIME) {
-                            console.log(`🗑️ Deleting old room: ${roomId}`);
-                            database.ref(`rooms/${roomId}`).remove();
-                        }
-                    });
-                } catch (error) {
-                    console.error('Error during cleanup:', error);
-                }
-            }
-
             async createRoom() {
                 try {
                     this.roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-                    console.log('🚀 Creating room:', this.roomId);
+                    console.log('Creating room:', this.roomId);
                     
                     this.updateUrl(this.roomId);
                     this.currentRoom.textContent = this.roomId;
@@ -939,16 +845,15 @@
                     this.showLoading(true, 'Creating room...');
                     
                     if (database) {
-                        const now = Date.now();
                         await database.ref(`rooms/${this.roomId}`).set({
-                            created: now,
-                            createdBy: this.userId,
-                            lastActive: now
+                            created: Date.now(),
+                            createdBy: this.userId
                         });
                     }
                     
                     await this.initializeMedia();
                     
+                    // Show call page
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
                     
@@ -973,7 +878,7 @@
                         return;
                     }
                     
-                    console.log('🔗 Joining room:', roomCode);
+                    console.log('Joining room:', roomCode);
                     
                     this.roomId = roomCode;
                     this.updateUrl(roomCode);
@@ -986,19 +891,16 @@
                         const snapshot = await roomRef.once('value');
                         
                         if (!snapshot.exists()) {
-                            const now = Date.now();
                             await roomRef.set({
-                                created: now,
-                                createdBy: this.userId,
-                                lastActive: now
+                                created: Date.now(),
+                                createdBy: this.userId
                             });
-                        } else {
-                            await roomRef.update({ lastActive: Date.now() });
                         }
                     }
                     
                     await this.initializeMedia();
                     
+                    // Show call page
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
                     
@@ -1016,132 +918,45 @@
 
             async initializeMedia() {
                 try {
-                    await this.checkAvailableCameras();
-                    
-                    this.localStream = await navigator.mediaDevices.getUserMedia({
-                        video: { 
-                            facingMode: this.currentFacingMode,
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
+                    const constraints = {
+                        video: {
+                            width: { ideal: 1280, max: 1920 },
+                            height: { ideal: 720, max: 1080 },
+                            facingMode: 'user'
                         },
                         audio: {
                             echoCancellation: true,
-                            noiseSuppression: true
+                            noiseSuppression: true,
+                            autoGainControl: true
                         }
-                    });
+                    };
                     
-                    console.log('🎥 Media initialized successfully with facing mode:', this.currentFacingMode);
+                    this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    console.log('Media initialized successfully');
                     
                     this.addLocalVideo();
-                    this.switchCameraBtn.style.display = this.hasMultipleCameras ? 'flex' : 'none';
                     
                 } catch (error) {
                     console.error('Media initialization error:', error);
                     
+                    // Try with basic constraints as fallback
                     try {
                         this.localStream = await navigator.mediaDevices.getUserMedia({
                             video: true,
                             audio: true
                         });
-                        console.log('📹 Media initialized with basic constraints');
+                        console.log('Media initialized with basic constraints');
                         this.addLocalVideo();
-                        this.switchCameraBtn.style.display = 'none';
                     } catch (fallbackError) {
-                        this.showToast('Camera access required');
+                        this.showToast('Camera and microphone access is required');
                         throw error;
                     }
                 }
             }
 
-            async checkAvailableCameras() {
-                try {
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    this.availableCameras = devices.filter(d => d.kind === 'videoinput');
-                    this.hasMultipleCameras = this.availableCameras.length > 1;
-                    console.log(`Found ${this.availableCameras.length} camera(s)`);
-                } catch (error) {
-                    console.error('Error checking cameras:', error);
-                    this.hasMultipleCameras = false;
-                }
-            }
-
-            async switchCamera() {
-                if (!this.hasMultipleCameras) {
-                    this.showToast('No alternative camera');
-                    return;
-                }
-
-                try {
-                    this.showLoading(true, 'Switching camera...');
-                    
-                    this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
-                    
-                    const settings = this.localStream.getVideoTracks()[0].getSettings();
-                    
-                    const existingPeers = [];
-                    this.peers.forEach((peer, peerId) => {
-                        existingPeers.push({ id: peerId, initiator: !peer.initiator });
-                    });
-                    
-                    this.peers.forEach(p => p.destroy());
-                    this.peers.clear();
-                    
-                    this.localStream.getVideoTracks().forEach(t => t.stop());
-                    
-                    const newStream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            width: settings.width || 1280,
-                            height: settings.height || 720,
-                            facingMode: this.currentFacingMode
-                        },
-                        audio: false
-                    });
-                    
-                    const newVideoTrack = newStream.getVideoTracks()[0];
-                    
-                    const updatedStream = new MediaStream();
-                    this.localStream.getAudioTracks().forEach(t => updatedStream.addTrack(t));
-                    updatedStream.addTrack(newVideoTrack);
-                    
-                    this.localStream = updatedStream;
-                    
-                    const localVideo = document.querySelector(`#container-${this.userId} video`);
-                    if (localVideo) {
-                        localVideo.srcObject = this.localStream;
-                        localVideo.play().catch(() => {});
-                    }
-                    
-                    const localContainer = document.getElementById(`container-${this.userId}`);
-                    if (localContainer) {
-                        if (this.currentFacingMode === 'user') {
-                            localContainer.classList.add('front-camera');
-                        } else {
-                            localContainer.classList.remove('front-camera');
-                        }
-                    }
-                    
-                    existingPeers.forEach((peer, i) => {
-                        setTimeout(() => {
-                            if (!this.peers.has(peer.id) && this.localStream) {
-                                console.log(`Reconnecting to peer: ${peer.id}`);
-                                this.connectToPeer(peer.id, peer.initiator);
-                            }
-                        }, i * 1000);
-                    });
-                    
-                    this.showToast(`Switched to ${this.currentFacingMode === 'user' ? 'front' : 'back'} camera`);
-                    
-                } catch (error) {
-                    console.error('Camera switch error:', error);
-                    this.showToast('Switch failed');
-                } finally {
-                    this.showLoading(false);
-                }
-            }
-
             addLocalVideo() {
                 const container = document.createElement('div');
-                container.className = `video-container local-video ${this.currentFacingMode === 'user' ? 'front-camera' : ''}`;
+                container.className = 'video-container local-video';
                 container.id = `container-${this.userId}`;
                 
                 const video = document.createElement('video');
@@ -1149,6 +964,9 @@
                 video.autoplay = true;
                 video.playsInline = true;
                 video.muted = true;
+                
+                // Mirror effect for local video (like a mirror)
+                video.style.transform = 'scaleX(-1)';
                 
                 const name = document.createElement('span');
                 name.className = 'participant-name';
@@ -1163,68 +981,72 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
                 
-                video.play().catch(() => {});
+                // Handle play() promise correctly
+                const playPromise = video.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            console.log('Local video playing');
+                        })
+                        .catch(error => {
+                            console.error('Local video play error:', error.name);
+                            // Auto-play was prevented, but that's OK for local video
+                        });
+                }
             }
 
             setupFirebaseListeners() {
                 if (!database || !this.roomId) return;
 
-                console.log('🔊 Setting up Firebase listeners for room:', this.roomId);
+                console.log('Setting up Firebase listeners for room:', this.roomId);
 
                 const roomRef = database.ref(`rooms/${this.roomId}`);
                 const participantRef = roomRef.child('participants').child(this.userId);
 
-                participantRef.set({ timestamp: Date.now(), userId: this.userId });
-                participantRef.onDisconnect().remove();
-
-                // First, get existing participants
-                roomRef.child('participants').once('value', (snapshot) => {
-                    const participants = snapshot.val() || {};
-                    Object.keys(participants).forEach(participantId => {
-                        if (participantId !== this.userId && !this.peers.has(participantId) && this.localStream) {
-                            console.log('👤 Found existing participant:', participantId);
-                            setTimeout(() => {
-                                if (!this.peers.has(participantId)) {
-                                    this.connectToPeer(participantId, true);
-                                }
-                            }, 1000);
-                        }
-                    });
+                // Add self to participants
+                participantRef.set({
+                    timestamp: Date.now(),
+                    userId: this.userId
                 });
+
+                participantRef.onDisconnect().remove();
 
                 // Listen for new participants
                 roomRef.child('participants').on('child_added', (snapshot) => {
                     const participantId = snapshot.key;
-                    if (participantId !== this.userId && !this.peers.has(participantId) && this.localStream) {
-                        console.log('👤 New participant joined:', participantId);
+                    if (participantId !== this.userId && !this.peers[participantId]) {
+                        console.log('New participant joined:', participantId);
+                        // Delay connection slightly to avoid race conditions
                         setTimeout(() => {
-                            if (!this.peers.has(participantId)) {
+                            if (!this.peers[participantId]) {
                                 this.connectToPeer(participantId, true);
                             }
-                        }, 1500);
+                        }, 500);
                     }
                     this.updateParticipantCount(roomRef);
                 });
 
+                // Listen for participants leaving
                 roomRef.child('participants').on('child_removed', (snapshot) => {
                     const participantId = snapshot.key;
-                    console.log('👋 Participant left:', participantId);
+                    console.log('Participant left:', participantId);
                     this.removeParticipant(participantId);
                     this.updateParticipantCount(roomRef);
-                    
-                    roomRef.update({ lastActive: Date.now() });
                 });
 
                 // Listen for signaling data
                 const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
+                const cutoffTime = Date.now() - 30000; // Only signals from last 30 seconds
 
-                signalsRef.on('child_added', (snapshot) => {
+                signalsRef.orderByChild('timestamp').startAt(cutoffTime).on('child_added', (snapshot) => {
                     const signal = snapshot.val();
                     if (signal.target === this.userId && signal.from !== this.userId) {
-                        console.log('📨 Received signal from:', signal.from, 'type:', signal.signal.type);
+                        console.log('Received signal from:', signal.from, 'type:', signal.signal.type);
                         this.handleSignal(signal);
                     }
-                    setTimeout(() => snapshot.ref.remove(), 10000);
+                    // Clean up signals after processing
+                    setTimeout(() => snapshot.ref.remove(), 5000);
                 });
             }
 
@@ -1236,28 +1058,18 @@
             }
 
             connectToPeer(peerId, initiator = false) {
-                if (this.peers.has(peerId)) {
+                if (this.peers[peerId]) {
                     console.log('Connection already exists for peer:', peerId);
                     return;
                 }
 
-                if (!this.localStream) {
-                    console.log('No local stream yet, delaying connection to:', peerId);
-                    setTimeout(() => {
-                        if (!this.peers.has(peerId) && this.localStream) {
-                            this.connectToPeer(peerId, initiator);
-                        }
-                    }, 1000);
-                    return;
-                }
-
-                console.log('🔌 Connecting to peer:', peerId, 'initiator:', initiator);
+                console.log('Connecting to peer:', peerId, 'initiator:', initiator);
 
                 try {
                     const peer = new SimplePeer({
                         initiator: initiator,
                         stream: this.localStream,
-                        trickle: true,
+                        trickle: true, // Better for NAT traversal
                         config: {
                             iceServers: [
                                 { urls: 'stun:stun.l.google.com:19302' },
@@ -1273,12 +1085,9 @@
                         }
                     });
 
-                    let signalSent = false;
-
                     peer.on('signal', (signal) => {
-                        if (!signalSent && database && this.roomId) {
-                            signalSent = true;
-                            console.log('📤 Sending signal to:', peerId, 'type:', signal.type);
+                        if (database && this.roomId) {
+                            console.log('Sending signal to:', peerId, 'type:', signal.type);
                             database.ref(`rooms/${this.roomId}/signals`).push({
                                 from: this.userId,
                                 target: peerId,
@@ -1289,27 +1098,25 @@
                     });
 
                     peer.on('stream', (stream) => {
-                        console.log('📡 Received stream from peer:', peerId);
+                        console.log('Received stream from peer:', peerId);
                         this.addRemoteVideo(stream, peerId);
                     });
 
                     peer.on('close', () => {
-                        console.log('🔒 Peer connection closed:', peerId);
+                        console.log('Peer connection closed:', peerId);
                         this.removeParticipant(peerId);
                     });
 
                     peer.on('error', (err) => {
-                        if (err.message && !err.message.includes('AbortError')) {
-                            console.error('⚠️ Peer connection error:', peerId, err.message);
-                        }
+                        console.error('Peer connection error:', peerId, err.message);
+                        // Don't remove immediately, might recover
                     });
 
                     peer.on('connect', () => {
-                        console.log('✅ Peer connection established:', peerId);
+                        console.log('Peer connection established:', peerId);
                     });
 
-                    peer.initiator = initiator;
-                    this.peers.set(peerId, peer);
+                    this.peers[peerId] = peer;
 
                 } catch (error) {
                     console.error('Error creating peer connection:', error);
@@ -1317,38 +1124,24 @@
             }
 
             handleSignal(signal) {
-                if (!this.peers.has(signal.from)) {
-                    console.log('Creating peer for signal from:', signal.from);
-                    
-                    setTimeout(() => {
-                        if (!this.peers.has(signal.from)) {
-                            this.connectToPeer(signal.from, false);
-                            
-                            setTimeout(() => {
-                                const peer = this.peers.get(signal.from);
-                                if (peer) {
-                                    try {
-                                        peer.signal(signal.signal);
-                                    } catch (error) {
-                                        console.error('Error signaling peer:', error);
-                                    }
-                                }
-                            }, 1000);
-                        }
-                    }, 500);
-                } else {
-                    const peer = this.peers.get(signal.from);
+                if (signal.signal.type === 'offer' && !this.peers[signal.from]) {
+                    console.log('Received offer, creating peer as responder');
+                    this.connectToPeer(signal.from, false);
+                }
+
+                const peer = this.peers[signal.from];
+                if (peer) {
                     try {
-                        if (peer && !peer.destroyed) {
-                            peer.signal(signal.signal);
-                        }
+                        peer.signal(signal.signal);
                     } catch (error) {
                         console.error('Error signaling peer:', error);
-                        if (this.peers.has(signal.from)) {
-                            this.peers.delete(signal.from);
-                            this.connectToPeer(signal.from, false);
+                        // If signaling fails, clean up and try again
+                        if (this.peers[signal.from]) {
+                            delete this.peers[signal.from];
                         }
                     }
+                } else {
+                    console.log('No peer found for signal from:', signal.from);
                 }
             }
 
@@ -1358,8 +1151,6 @@
                     return;
                 }
 
-                console.log('Adding remote video for user:', userId);
-                
                 const container = document.createElement('div');
                 container.className = 'video-container';
                 container.id = `container-${userId}`;
@@ -1368,10 +1159,6 @@
                 video.srcObject = stream;
                 video.autoplay = true;
                 video.playsInline = true;
-
-                // Important: Set these attributes for iOS
-                video.setAttribute('playsinline', 'true');
-                video.setAttribute('webkit-playsinline', 'true');
 
                 const name = document.createElement('span');
                 name.className = 'participant-name';
@@ -1386,34 +1173,32 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
 
-                // Force video to play
-                const playVideo = () => {
-                    video.play()
+                // Handle play() promise correctly to avoid AbortError
+                const playPromise = video.play();
+
+                if (playPromise !== undefined) {
+                    playPromise
                         .then(() => {
                             console.log('Remote video playing for:', userId);
                         })
                         .catch(error => {
-                            console.log('Remote video play error for', userId, ':', error.name);
-                            // Retry after a short delay
-                            setTimeout(playVideo, 1000);
+                            console.error('Remote video play error for', userId, ':', error.name);
+                            // If play was interrupted, try again after a short delay
+                            if (error.name === 'AbortError') {
+                                setTimeout(() => {
+                                    if (video && video.paused) {
+                                        video.play().catch(e => console.log('Retry play failed:', e));
+                                    }
+                                }, 1000);
+                            }
                         });
-                };
-                
-                playVideo();
-
-                // Also add an event listener for when video can play
-                video.addEventListener('canplay', () => {
-                    video.play().catch(() => {});
-                });
+                }
             }
 
             removeParticipant(userId) {
-                if (this.peers.has(userId)) {
-                    const peer = this.peers.get(userId);
-                    try {
-                        peer.destroy();
-                    } catch (e) {}
-                    this.peers.delete(userId);
+                if (this.peers[userId]) {
+                    this.peers[userId].destroy();
+                    delete this.peers[userId];
                 }
 
                 const container = document.getElementById(`container-${userId}`);
@@ -1471,19 +1256,24 @@
 
             async toggleScreen() {
                 if (this.screenStream) {
+                    // Stop screen sharing
                     this.screenStream.getTracks().forEach(track => track.stop());
                     this.screenStream = null;
                     
+                    // Restore camera
                     const videoTrack = this.localStream.getVideoTracks()[0];
                     if (videoTrack) {
                         videoTrack.enabled = true;
                     }
                     
-                    this.peers.forEach((peer) => {
+                    // Update all peers
+                    Object.values(this.peers).forEach(peer => {
                         if (peer) {
                             try {
                                 peer.replaceTrack(videoTrack, this.localStream);
-                            } catch (e) {}
+                            } catch (e) {
+                                console.error('Error replacing track:', e);
+                            }
                         }
                     });
                     
@@ -1492,6 +1282,7 @@
                     
                 } else {
                     try {
+                        // Start screen sharing
                         this.screenStream = await navigator.mediaDevices.getDisplayMedia({
                             video: true,
                             audio: false
@@ -1499,11 +1290,14 @@
                         
                         const screenTrack = this.screenStream.getVideoTracks()[0];
                         
-                        this.peers.forEach((peer) => {
+                        // Update all peers
+                        Object.values(this.peers).forEach(peer => {
                             if (peer) {
                                 try {
                                     peer.replaceTrack(screenTrack, this.screenStream);
-                                } catch (e) {}
+                                } catch (e) {
+                                    console.error('Error replacing with screen track:', e);
+                                }
                             }
                         });
                         
@@ -1513,7 +1307,7 @@
                         this.showToast('Screen sharing started');
                         
                     } catch (error) {
-                        console.log('Screen sharing cancelled');
+                        console.log('Screen sharing cancelled or failed');
                     }
                 }
             }
@@ -1521,13 +1315,15 @@
             async leaveCall() {
                 this.showLoading(true, 'Leaving call...');
                 
-                this.peers.forEach((peer) => {
+                // Close all peer connections
+                Object.values(this.peers).forEach(peer => {
                     try {
                         peer.destroy();
                     } catch (e) {}
                 });
-                this.peers.clear();
+                this.peers = {};
                 
+                // Stop local media
                 if (this.localStream) {
                     this.localStream.getTracks().forEach(track => {
                         try {
@@ -1537,6 +1333,7 @@
                     this.localStream = null;
                 }
                 
+                // Stop screen sharing
                 if (this.screenStream) {
                     this.screenStream.getTracks().forEach(track => {
                         try {
@@ -1546,16 +1343,24 @@
                     this.screenStream = null;
                 }
                 
+                // Clean up Firebase
                 if (database && this.roomId) {
                     await database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
-                    await database.ref(`rooms/${this.roomId}`).update({
-                        lastActive: Date.now()
-                    });
+                    
+                    // Check if room is empty
+                    const participants = await database.ref(`rooms/${this.roomId}/participants`).once('value');
+                    if (!participants.exists() || participants.numChildren() === 0) {
+                        await database.ref(`rooms/${this.roomId}`).remove();
+                    }
                 }
                 
+                // Clear video grid
                 this.videoGrid.innerHTML = '';
+                
+                // Clear URL
                 window.history.replaceState({}, '', window.location.pathname);
                 
+                // Return to landing page
                 this.callPage.classList.remove('active');
                 this.landingPage.classList.add('active');
                 
@@ -1569,6 +1374,7 @@
                 navigator.clipboard.writeText(this.roomId).then(() => {
                     this.showToast('Room code copied!');
                 }).catch(() => {
+                    // Fallback for older browsers
                     const textarea = document.createElement('textarea');
                     textarea.value = this.roomId;
                     document.body.appendChild(textarea);
@@ -1580,9 +1386,11 @@
             }
         }
 
+        // Start the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 DOM loaded, starting application...');
+            console.log('DOM loaded, starting application...');
             
+            // Check if SimplePeer is loaded
             if (typeof SimplePeer === 'undefined') {
                 console.error('SimplePeer library not loaded');
                 alert('Failed to load video call library. Please refresh the page.');
@@ -1594,12 +1402,6 @@
             } catch (error) {
                 console.error('Failed to start application:', error);
                 alert('Failed to start video call application. Please refresh the page.');
-            }
-        });
-
-        window.addEventListener('beforeunload', () => {
-            if (window.app && window.app.cleanupInterval) {
-                clearInterval(window.app.cleanupInterval);
             }
         });
     </script>
