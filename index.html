@@ -306,10 +306,11 @@
         .room-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             background: rgba(255,255,255,0.1);
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 40px;
+            flex-wrap: wrap;
         }
 
         .room-label {
@@ -324,6 +325,12 @@
             letter-spacing: 1px;
         }
 
+        .copy-options {
+            display: flex;
+            gap: 4px;
+            margin-left: 4px;
+        }
+
         .icon-btn {
             background: rgba(255,255,255,0.15);
             border: none;
@@ -333,11 +340,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            position: relative;
         }
 
         .icon-btn:hover {
             background: rgba(255,255,255,0.25);
+            transform: scale(1.1);
         }
 
         .icon-btn:active {
@@ -345,9 +354,28 @@
         }
 
         .icon-btn img {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             filter: brightness(0) invert(1);
+        }
+
+        .icon-btn[title] {
+            position: relative;
+        }
+
+        .icon-btn[title]:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
         }
 
         .participant-count {
@@ -928,6 +956,23 @@
             .chat-panel {
                 max-width: 100%;
             }
+            
+            .room-info {
+                padding: 4px 8px;
+            }
+            
+            .copy-options {
+                gap: 2px;
+            }
+            
+            .icon-btn {
+                padding: 6px;
+            }
+            
+            .icon-btn img {
+                width: 16px;
+                height: 16px;
+            }
         }
 
         /* Safe areas */
@@ -997,11 +1042,16 @@
         <div id="call-page" class="page">
             <div class="call-header">
                 <div class="room-info">
-                    <span class="room-label">Room</span>
+                    <span class="room-label">Room:</span>
                     <span id="current-room" class="room-code">---</span>
-                    <button id="copy-room" class="icon-btn" title="Copy room code">
-                        <img src="https://cdn-icons-png.flaticon.com/512/1621/1621635.png" alt="Copy">
-                    </button>
+                    <div class="copy-options">
+                        <button id="copy-code" class="icon-btn" title="Copy room code">
+                            <img src="https://cdn-icons-png.flaticon.com/512/1621/1621635.png" alt="Copy code">
+                        </button>
+                        <button id="copy-link" class="icon-btn" title="Copy full room link">
+                            <img src="https://cdn-icons-png.flaticon.com/512/1237/1237936.png" alt="Copy link">
+                        </button>
+                    </div>
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -1293,7 +1343,8 @@
                 this.joinBtn = document.getElementById('join-room');
                 this.roomInput = document.getElementById('room-code');
                 this.currentRoom = document.getElementById('current-room');
-                this.copyBtn = document.getElementById('copy-room');
+                this.copyCodeBtn = document.getElementById('copy-code');
+                this.copyLinkBtn = document.getElementById('copy-link');
                 this.videoGrid = document.getElementById('video-grid');
                 this.participantCount = document.getElementById('participant-count');
                 this.loadingOverlay = document.getElementById('loading-overlay');
@@ -1318,7 +1369,8 @@
             attachEvents() {
                 this.createBtn.addEventListener('click', () => this.createRoom());
                 this.joinBtn.addEventListener('click', () => this.joinRoom());
-                this.copyBtn.addEventListener('click', () => this.copyRoomCode());
+                this.copyCodeBtn.addEventListener('click', () => this.copyRoomCode());
+                this.copyLinkBtn.addEventListener('click', () => this.copyRoomLink());
                 this.muteBtn.addEventListener('click', () => this.toggleAudio());
                 this.videoBtn.addEventListener('click', () => this.toggleVideo());
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
@@ -2344,6 +2396,49 @@
                 return div.innerHTML;
             }
 
+            // New method to copy full room link
+            copyRoomLink() {
+                if (!this.roomId) return;
+                
+                // Get the base URL (without any query parameters)
+                const baseUrl = window.location.protocol + '//' + window.location.hostname + 
+                               (window.location.port ? ':' + window.location.port : '') + 
+                               window.location.pathname;
+                
+                // Create full URL with room parameter
+                const fullUrl = baseUrl + '?room=' + this.roomId;
+                
+                navigator.clipboard.writeText(fullUrl).then(() => {
+                    this.showToast('Room link copied to clipboard!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textarea = document.createElement('textarea');
+                    textarea.value = fullUrl;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    this.showToast('Room link copied to clipboard!');
+                });
+            }
+
+            copyRoomCode() {
+                if (!this.roomId) return;
+                
+                navigator.clipboard.writeText(this.roomId).then(() => {
+                    this.showToast('Room code copied!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textarea = document.createElement('textarea');
+                    textarea.value = this.roomId;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    this.showToast('Room code copied!');
+                });
+            }
+
             async leaveCall(clearAllCookies = true) {
                 this.showLoading(true, 'Leaving call...');
                 
@@ -2445,23 +2540,6 @@
                     // Clear session cookie but keep user ID
                     this.clearSessionCookie();
                 }
-            }
-
-            copyRoomCode() {
-                if (!this.roomId) return;
-                
-                navigator.clipboard.writeText(this.roomId).then(() => {
-                    this.showToast('Room code copied!');
-                }).catch(() => {
-                    // Fallback for older browsers
-                    const textarea = document.createElement('textarea');
-                    textarea.value = this.roomId;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    this.showToast('Room code copied!');
-                });
             }
         }
 
