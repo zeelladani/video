@@ -1040,7 +1040,13 @@
             // Sync the live video srcObject to the clone
             const origVideo = container.querySelector('video');
             const cloneVideo = clone.querySelector('video');
-            if (origVideo && cloneVideo) cloneVideo.srcObject = origVideo.srcObject;
+            if (origVideo && cloneVideo) {
+                cloneVideo.srcObject = origVideo.srcObject;
+                // CRITICAL: local video must ALWAYS be muted to prevent hearing your own mic
+                const isLocal = (targetId === this.userId);
+                cloneVideo.muted = isLocal;
+                cloneVideo.volume = isLocal ? 0 : 1;
+            }
             this.spotlightArea.appendChild(clone);
 
             // Mark active thumbnail
@@ -1226,7 +1232,7 @@
                     localContainer.classList.remove('cam-front', 'cam-back');
                     localContainer.classList.add(newFacingMode === 'user' ? 'cam-front' : 'cam-back');
                     const video = localContainer.querySelector('video');
-                    if (video) { video.srcObject = newStream; video.play().catch(() => {}); }
+                    if (video) { video.muted = true; video.volume = 0; video.srcObject = newStream; video.play().catch(() => {}); }
                 }
                 // Also update spotlight clone if local is spotlighted
                 const cloneContainer = document.getElementById(`spotlight-clone-${this.userId}`);
@@ -1234,7 +1240,7 @@
                     cloneContainer.classList.remove('cam-front', 'cam-back');
                     cloneContainer.classList.add(newFacingMode === 'user' ? 'cam-front' : 'cam-back');
                     const cv = cloneContainer.querySelector('video');
-                    if (cv) { cv.srcObject = newStream; cv.play().catch(() => {}); }
+                    if (cv) { cv.muted = true; cv.volume = 0; cv.srcObject = newStream; cv.play().catch(() => {}); }
                 }
 
                 // Replace video track in all peer connections
@@ -1330,7 +1336,7 @@
                 lc.classList.remove('cam-front', 'cam-back');
                 lc.classList.add(this.currentFacingMode === 'user' ? 'cam-front' : 'cam-back');
                 const v = lc.querySelector('video');
-                if (v) { v.srcObject = newStream; v.play().catch(e => {}); }
+                if (v) { v.muted = true; v.volume = 0; v.srcObject = newStream; v.play().catch(e => {}); }
             }
             // Sync spotlight clone if local is spotlighted
             const lclone = document.getElementById(`spotlight-clone-${this.userId}`);
@@ -1338,7 +1344,7 @@
                 lclone.classList.remove('cam-front', 'cam-back');
                 lclone.classList.add(this.currentFacingMode === 'user' ? 'cam-front' : 'cam-back');
                 const cv = lclone.querySelector('video');
-                if (cv) { cv.srcObject = newStream; cv.play().catch(() => {}); }
+                if (cv) { cv.muted = true; cv.volume = 0; cv.srcObject = newStream; cv.play().catch(() => {}); }
             }
 
             this.peers.forEach((peer, peerId) => {
@@ -1382,7 +1388,10 @@
 
             const video = document.createElement('video');
             video.srcObject = this.localStream;
-            video.autoplay = true; video.playsInline = true; video.muted = true;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;      // Prevent hearing your own mic through speakers
+            video.volume = 0;        // Belt-and-suspenders: some browsers ignore muted on dynamic elements
 
             const avatar = document.createElement('div');
             avatar.className = 'avatar';
