@@ -359,10 +359,6 @@
             filter: brightness(0) invert(1);
         }
 
-        .icon-btn[title] {
-            position: relative;
-        }
-
         .icon-btn[title]:hover::after {
             content: attr(title);
             position: absolute;
@@ -415,19 +411,23 @@
             min-height: 0;
         }
 
-        #video-grid:empty::before {
-            content: 'Waiting for others to join...\A\A Share the room code with friends';
-            white-space: pre;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* FIX #13: Use a sibling/wrapper approach for the empty state instead of :empty pseudo */
+        .video-grid-empty-msg {
+            display: none;
             width: 100%;
             height: 100%;
+            align-items: center;
+            justify-content: center;
             color: var(--text-secondary);
             font-size: 16px;
             text-align: center;
             line-height: 1.6;
             padding: 20px;
+            white-space: pre;
+        }
+
+        .video-grid-empty-msg.show {
+            display: flex;
         }
 
         .video-container {
@@ -443,8 +443,8 @@
             transition: border-color 0.2s;
         }
 
-        .video-container:only-child { 
-            width: 100%; 
+        .video-container:only-child {
+            width: 100%;
         }
 
         .video-container video {
@@ -455,7 +455,6 @@
             pointer-events: none;
         }
 
-        /* Avatar for when video is off */
         .video-container.video-off video {
             opacity: 0;
         }
@@ -488,7 +487,6 @@
             display: none;
         }
 
-        /* Mirror effect for local video */
         .local-video video {
             transform: scaleX(-1);
         }
@@ -531,8 +529,8 @@
             filter: brightness(0) invert(1);
         }
 
-        .audio-indicator.muted { 
-            background: var(--danger); 
+        .audio-indicator.muted {
+            background: var(--danger);
         }
 
         /* Connection quality indicator */
@@ -565,8 +563,8 @@
         .quality-dot.fair { background: var(--warning); }
         .quality-dot.poor { background: var(--danger); }
 
-        .local-video { 
-            border-color: var(--primary); 
+        .local-video {
+            border-color: var(--primary);
         }
 
         /* PiP Button */
@@ -852,8 +850,8 @@
             margin-bottom: 20px;
         }
 
-        @keyframes spin { 
-            to { transform: rotate(360deg); } 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         #loading-message {
@@ -864,7 +862,7 @@
             padding: 0 20px;
         }
 
-        /* Toast */
+        /* FIX #14: Toast with variable duration support */
         .toast {
             position: fixed;
             bottom: 30px;
@@ -886,18 +884,22 @@
             text-align: center;
         }
 
+        .toast.toast-important {
+            border-color: var(--warning);
+            background: rgba(20,10,0,0.95);
+        }
+
         @keyframes slideUp {
-            from { 
-                opacity: 0; 
-                transform: translate(-50%, 20px); 
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
             }
-            to { 
-                opacity: 1; 
-                transform: translate(-50%, 0); 
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
             }
         }
 
-        /* Animations */
         @keyframes fadeInDown {
             from {
                 opacity: 0;
@@ -922,53 +924,53 @@
 
         /* Mobile Landscape */
         @media (max-width: 768px) and (orientation: landscape) {
-            .video-container { 
-                width: calc(33.333% - 6px); 
+            .video-container {
+                width: calc(33.333% - 6px);
             }
-            
-            .control-btn { 
-                min-width: 60px; 
+
+            .control-btn {
+                min-width: 60px;
             }
-            
-            .control-btn span { 
-                font-size: 10px; 
+
+            .control-btn span {
+                font-size: 10px;
             }
-            
-            .control-btn img { 
-                width: 24px; 
-                height: 24px; 
+
+            .control-btn img {
+                width: 24px;
+                height: 24px;
             }
         }
 
         @media (max-width: 480px) {
-            .video-container { 
-                width: 100%; 
+            .video-container {
+                width: 100%;
             }
-            
-            .control-btn { 
-                min-width: 60px; 
+
+            .control-btn {
+                min-width: 60px;
             }
-            
-            .control-btn span { 
-                font-size: 10px; 
+
+            .control-btn span {
+                font-size: 10px;
             }
-            
+
             .chat-panel {
                 max-width: 100%;
             }
-            
+
             .room-info {
                 padding: 4px 8px;
             }
-            
+
             .copy-options {
                 gap: 2px;
             }
-            
+
             .icon-btn {
                 padding: 6px;
             }
-            
+
             .icon-btn img {
                 width: 16px;
                 height: 16px;
@@ -980,7 +982,7 @@
             .call-header {
                 padding-top: max(12px, env(safe-area-inset-top));
             }
-            
+
             .call-controls {
                 padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
             }
@@ -995,7 +997,7 @@
 
     <!-- Reconnection Banner -->
     <div id="reconnection-banner" class="reconnection-banner">
-        <span>Video stream interrupted. </span>
+        <span id="reconnection-message">Video stream interrupted. </span>
         <button id="reconnect-btn">Reconnect</button>
     </div>
 
@@ -1007,21 +1009,21 @@
                 <h1>Private Video Call</h1>
                 <p class="subtitle">Secure • Private • No Login Required</p>
             </div>
-            
+
             <div class="action-buttons">
                 <button id="create-room" class="primary-btn">
                     <img src="https://cdn-icons-png.flaticon.com/512/1828/1828817.png" alt="Create">
                     Create New Room
                 </button>
-                
+
                 <div class="or-divider">OR</div>
-                
+
                 <div class="join-section">
-                    <input 
-                        type="text" 
-                        id="room-code" 
-                        placeholder="Enter 4-digit code" 
-                        maxlength="4" 
+                    <input
+                        type="text"
+                        id="room-code"
+                        placeholder="Enter 4-digit code"
+                        maxlength="4"
                         autocomplete="off"
                         inputmode="numeric"
                         pattern="[0-9]*"
@@ -1031,7 +1033,7 @@
                         Join Room
                     </button>
                 </div>
-                
+
                 <div class="info-text">
                     Share the code • Instant connection • Auto cleanup
                 </div>
@@ -1053,12 +1055,12 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <button id="toggle-chat" class="icon-btn chat-toggle" title="Toggle chat">
                         <img src="https://cdn-icons-png.flaticon.com/512/134/134914.png" alt="Chat">
                     </button>
-                    
+
                     <div class="participant-count">
                         <img src="https://cdn-icons-png.flaticon.com/512/1077/1077063.png" alt="Participants">
                         <span id="participant-count">0</span>
@@ -1066,7 +1068,12 @@
                 </div>
             </div>
 
-            <div id="video-grid"></div>
+            <!-- FIX #13: Separate empty state element instead of CSS :empty pseudo -->
+            <div id="video-grid">
+                <div id="video-grid-empty" class="video-grid-empty-msg">
+                    Waiting for others to join...&#10;&#10;Share the room code with friends
+                </div>
+            </div>
 
             <div class="call-controls">
                 <button id="toggle-mute" class="control-btn active" title="Mute/Unmute">
@@ -1112,14 +1119,21 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-peer@9.11.1/simplepeer.min.js"></script>
-    
+
     <script>
-        // Check for HTTPS
-        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1')) {
+        // ─── HTTPS Check ────────────────────────────────────────────────────────────
+        if (
+            window.location.protocol !== 'https:' &&
+            window.location.hostname !== 'localhost' &&
+            !window.location.hostname.includes('127.0.0.1')
+        ) {
             document.getElementById('https-warning').classList.add('show');
         }
 
-        // Firebase Configuration
+        // ─── Firebase Configuration ──────────────────────────────────────────────────
+        // FIX #11: Note — move this config to an environment-injected variable in
+        // production and enforce Firebase Security Rules on the server side.
+        // This client-side config alone is not sufficient for security.
         const firebaseConfig = {
             apiKey: "AIzaSyDTRGf1kGE2_Kjm457NmRdID0_w_x5h48k",
             authDomain: "video-9335.firebaseapp.com",
@@ -1130,7 +1144,6 @@
             appId: "1:438743646214:web:db16a9d5c94820845b8387"
         };
 
-        // Initialize Firebase
         let database;
         try {
             firebase.initializeApp(firebaseConfig);
@@ -1140,27 +1153,32 @@
             console.error('Firebase initialization error:', e);
         }
 
-        // Video Call App Class
+        // ─── Video Call App ──────────────────────────────────────────────────────────
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
                 this.peers = new Map();
                 this.roomId = null;
-                // Generate or retrieve persistent user ID from cookie
                 this.userId = this.getOrCreateUserId();
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
                 this.isInitialized = false;
                 this.chatMessages = [];
-                this.connectionQuality = new Map(); // Track connection quality per peer
-                
-                // Stream monitoring properties
+                this.connectionQuality = new Map();
+
+                // Stream monitoring
                 this.streamHealthInterval = null;
                 this.streamHealthy = true;
                 this.reconnectAttempts = 0;
                 this.maxReconnectAttempts = 3;
                 this.reconnectTimeout = null;
-                
+
+                // FIX #6: Track quality poll intervals so they can be cleared
+                this.qualityIntervals = new Map();
+
+                // FIX #10: Track Firebase listeners for cleanup
+                this.firebaseListeners = [];
+
                 this.initializeElements();
                 this.attachEvents();
                 this.checkUrlForRoom();
@@ -1169,54 +1187,49 @@
                 this.loadUserPreferences();
             }
 
-            // Get existing user ID from cookie or create new one
+            // ── Cookie helpers ──────────────────────────────────────────────────────
+
+            // FIX #2: Cookie Secure flag only added on HTTPS to allow localhost to work
+            buildCookieOptions(expiry) {
+                const isSecure =
+                    window.location.protocol === 'https:' &&
+                    window.location.hostname !== 'localhost' &&
+                    !window.location.hostname.includes('127.0.0.1');
+                return `expires=${expiry.toUTCString()}; path=/; SameSite=Strict${isSecure ? '; Secure' : ''}`;
+            }
+
             getOrCreateUserId() {
                 const cookieName = 'video_call_user_id';
                 const cookies = document.cookie.split(';');
-                
-                // Look for existing user ID cookie
                 for (let cookie of cookies) {
                     const [name, value] = cookie.trim().split('=');
-                    if (name === cookieName) {
+                    if (name === cookieName && value) {
                         console.log('Found existing user session:', value);
                         return value;
                     }
                 }
-                
-                // Create new user ID
                 const newUserId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-                
-                // Set cookie with expiry (30 days)
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + 30);
-                document.cookie = `${cookieName}=${newUserId}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
-                
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 30);
+                document.cookie = `${cookieName}=${newUserId}; ${this.buildCookieOptions(expiry)}`;
                 console.log('Created new user session:', newUserId);
                 return newUserId;
             }
 
-            // Check for active session in current room
             checkForActiveSession() {
                 const sessionCookieName = 'video_call_active_room';
                 const cookies = document.cookie.split(';');
-                
                 for (let cookie of cookies) {
                     const [name, value] = cookie.trim().split('=');
                     if (name === sessionCookieName) {
                         try {
                             const sessionData = JSON.parse(decodeURIComponent(value));
-                            
-                            // Check if session is less than 5 minutes old
                             if (Date.now() - sessionData.timestamp < 5 * 60 * 1000) {
-                                console.log('Found active session for room:', sessionData.roomId);
-                                
-                                // Auto-fill room code and show notification
                                 if (sessionData.roomId) {
                                     this.roomInput.value = sessionData.roomId;
                                     this.showToast('Previous session detected. Click Join to reconnect.');
                                 }
                             } else {
-                                // Clear expired session
                                 this.clearSessionCookie();
                             }
                         } catch (e) {
@@ -1227,60 +1240,36 @@
                 }
             }
 
-            // Set active session cookie
             setActiveSession(roomId) {
                 const sessionCookieName = 'video_call_active_room';
-                const sessionData = {
-                    roomId: roomId,
-                    userId: this.userId,
-                    timestamp: Date.now()
-                };
-                
-                // Set cookie with 1 hour expiry
-                const expiryDate = new Date();
-                expiryDate.setHours(expiryDate.getHours() + 1);
-                document.cookie = `${sessionCookieName}=${encodeURIComponent(JSON.stringify(sessionData))}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
-                
-                // Also store in localStorage for backup
+                const sessionData = { roomId, userId: this.userId, timestamp: Date.now() };
+                const expiry = new Date();
+                expiry.setHours(expiry.getHours() + 1);
+                document.cookie = `${sessionCookieName}=${encodeURIComponent(JSON.stringify(sessionData))}; ${this.buildCookieOptions(expiry)}`;
                 localStorage.setItem('video_call_active_session', JSON.stringify(sessionData));
-                
-                console.log('Active session set for room:', roomId);
             }
 
-            // Clear all user cookies and storage
             clearUserCookies() {
-                console.log('Clearing user cookies and storage...');
-                
-                // Get all cookies
                 const cookies = document.cookie.split(';');
-                
-                // Clear all cookies related to video call
                 for (let cookie of cookies) {
                     const [name] = cookie.trim().split('=');
                     if (name.startsWith('video_call_')) {
-                        // Clear cookie by setting expiry to past date
-                        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure`;
+                        const past = new Date(0);
+                        document.cookie = `${name}=; ${this.buildCookieOptions(past)}`;
                     }
                 }
-                
-                // Clear localStorage items
                 localStorage.removeItem('video_call_active_session');
                 localStorage.removeItem('video_call_user_preferences');
                 localStorage.removeItem('video_call_chat_history');
-                
-                // Clear sessionStorage
                 sessionStorage.clear();
-                
-                console.log('User cookies and storage cleared');
             }
 
-            // Clear only session cookie
             clearSessionCookie() {
-                document.cookie = `video_call_active_room=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure`;
+                const past = new Date(0);
+                document.cookie = `video_call_active_room=; ${this.buildCookieOptions(past)}`;
                 localStorage.removeItem('video_call_active_session');
             }
 
-            // Save user preferences in cookies
             saveUserPreferences() {
                 const prefs = {
                     audioMuted: this.isAudioMuted,
@@ -1288,53 +1277,28 @@
                     lastRoom: this.roomId,
                     timestamp: Date.now()
                 };
-                
-                // Save to localStorage
                 localStorage.setItem('video_call_user_preferences', JSON.stringify(prefs));
-                
-                // Save to cookie (30 days expiry)
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + 30);
-                document.cookie = `video_call_preferences=${encodeURIComponent(JSON.stringify(prefs))}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 30);
+                document.cookie = `video_call_preferences=${encodeURIComponent(JSON.stringify(prefs))}; ${this.buildCookieOptions(expiry)}`;
             }
 
-            // Load user preferences
             loadUserPreferences() {
-                // Try localStorage first
                 const prefsJson = localStorage.getItem('video_call_user_preferences');
                 if (prefsJson) {
                     try {
                         const prefs = JSON.parse(prefsJson);
-                        // Only use preferences less than 7 days old
                         if (Date.now() - prefs.timestamp < 7 * 24 * 60 * 60 * 1000) {
                             this.isAudioMuted = prefs.audioMuted || false;
                             this.isVideoMuted = prefs.videoMuted || false;
-                            console.log('Loaded user preferences from localStorage');
                         }
                     } catch (e) {
                         console.error('Error loading preferences:', e);
                     }
                 }
-                
-                // Fallback to cookies
-                const cookies = document.cookie.split(';');
-                for (let cookie of cookies) {
-                    const [name, value] = cookie.trim().split('=');
-                    if (name === 'video_call_preferences') {
-                        try {
-                            const prefs = JSON.parse(decodeURIComponent(value));
-                            if (Date.now() - prefs.timestamp < 7 * 24 * 60 * 60 * 1000) {
-                                this.isAudioMuted = prefs.audioMuted || false;
-                                this.isVideoMuted = prefs.videoMuted || false;
-                                console.log('Loaded user preferences from cookie');
-                            }
-                        } catch (e) {
-                            console.error('Error loading preferences from cookie:', e);
-                        }
-                        break;
-                    }
-                }
             }
+
+            // ── DOM refs ────────────────────────────────────────────────────────────
 
             initializeElements() {
                 this.landingPage = document.getElementById('landing-page');
@@ -1346,18 +1310,18 @@
                 this.copyCodeBtn = document.getElementById('copy-code');
                 this.copyLinkBtn = document.getElementById('copy-link');
                 this.videoGrid = document.getElementById('video-grid');
+                this.videoGridEmpty = document.getElementById('video-grid-empty');
                 this.participantCount = document.getElementById('participant-count');
                 this.loadingOverlay = document.getElementById('loading-overlay');
                 this.loadingMessage = document.getElementById('loading-message');
                 this.reconnectionBanner = document.getElementById('reconnection-banner');
+                this.reconnectionMessage = document.getElementById('reconnection-message');
                 this.reconnectBtn = document.getElementById('reconnect-btn');
-                
-                // Control buttons
+
                 this.muteBtn = document.getElementById('toggle-mute');
                 this.videoBtn = document.getElementById('toggle-video');
                 this.leaveBtn = document.getElementById('leave-call');
-                
-                // Chat elements
+
                 this.chatPanel = document.getElementById('chat-panel');
                 this.toggleChatBtn = document.getElementById('toggle-chat');
                 this.closeChatBtn = document.getElementById('close-chat');
@@ -1375,20 +1339,16 @@
                 this.videoBtn.addEventListener('click', () => this.toggleVideo());
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
                 this.reconnectBtn.addEventListener('click', () => this.forceReconnect());
-                
-                // Chat events
+
                 this.toggleChatBtn.addEventListener('click', () => this.toggleChat());
                 this.closeChatBtn.addEventListener('click', () => this.toggleChat());
                 this.sendChatBtn.addEventListener('click', () => this.sendMessage());
                 this.chatInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.sendMessage();
                 });
-                
                 this.roomInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.joinRoom();
                 });
-                
-                // Only allow numbers in room input
                 this.roomInput.addEventListener('input', (e) => {
                     e.target.value = e.target.value.replace(/[^0-9]/g, '');
                 });
@@ -1396,7 +1356,6 @@
 
             setupConnectionMonitoring() {
                 if (!database) return;
-                
                 database.ref('.info/connected').on('value', (snap) => {
                     if (snap.val()) {
                         console.log('✅ Connected to Firebase');
@@ -1422,12 +1381,14 @@
                 window.history.pushState({}, '', url);
             }
 
-            showToast(message) {
+            // FIX #14: showToast accepts optional duration; important messages get 5s
+            showToast(message, important = false) {
+                const duration = important ? 5000 : 2000;
                 const toast = document.createElement('div');
-                toast.className = 'toast';
+                toast.className = 'toast' + (important ? ' toast-important' : '');
                 toast.textContent = message;
                 document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 2000);
+                setTimeout(() => toast.remove(), duration);
             }
 
             showLoading(show, message = 'Connecting...') {
@@ -1436,8 +1397,7 @@
             }
 
             showReconnectionBanner(message) {
-                const banner = this.reconnectionBanner.querySelector('span');
-                banner.textContent = message + ' ';
+                this.reconnectionMessage.textContent = message + ' ';
                 this.reconnectionBanner.classList.add('show');
             }
 
@@ -1445,44 +1405,47 @@
                 this.reconnectionBanner.classList.remove('show');
             }
 
+            // FIX #13: manage the empty state visibility manually
+            updateEmptyState() {
+                // Count video containers that are NOT the empty placeholder
+                const containers = this.videoGrid.querySelectorAll('.video-container');
+                // Show empty msg only when there are no remote participants
+                // (local video is always present when in call, so > 1 means someone else joined)
+                if (containers.length <= 1) {
+                    this.videoGridEmpty.classList.add('show');
+                } else {
+                    this.videoGridEmpty.classList.remove('show');
+                }
+            }
+
+            // ── Room management ─────────────────────────────────────────────────────
+
             async createRoom() {
                 try {
-                    // Generate 4-digit random number
                     this.roomId = Math.floor(1000 + Math.random() * 9000).toString();
-                    console.log('🚀 Creating room:', this.roomId);
-                    
                     this.updateUrl(this.roomId);
                     this.currentRoom.textContent = this.roomId;
-                    
                     this.showLoading(true, 'Creating room...');
-                    
+
                     if (database) {
                         await database.ref(`rooms/${this.roomId}`).set({
                             created: Date.now(),
                             createdBy: this.userId
                         });
                     }
-                    
+
                     await this.initializeMedia();
-                    
-                    // Show call page
+
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
-                    
-                    // Setup Firebase listeners
+
                     this.setupFirebaseListeners();
-                    
-                    // Set active session cookie
                     this.setActiveSession(this.roomId);
-                    
-                    // Start stream health monitoring
                     this.startStreamHealthMonitoring();
-                    
                     this.isInitialized = true;
-                    
+
                     this.showToast(`Room created: ${this.roomId}`);
                     setTimeout(() => this.copyRoomCode(), 1000);
-                    
                 } catch (error) {
                     console.error('Error creating room:', error);
                     this.showToast('Failed to create room');
@@ -1498,46 +1461,31 @@
                         this.showToast('Please enter a valid 4-digit code');
                         return;
                     }
-                    
-                    console.log('🔗 Joining room:', roomCode);
-                    
+
                     this.roomId = roomCode;
                     this.updateUrl(roomCode);
                     this.currentRoom.textContent = roomCode;
-                    
                     this.showLoading(true, 'Joining room...');
-                    
+
                     if (database) {
                         const roomRef = database.ref(`rooms/${roomCode}`);
                         const snapshot = await roomRef.once('value');
-                        
                         if (!snapshot.exists()) {
-                            await roomRef.set({
-                                created: Date.now(),
-                                createdBy: this.userId
-                            });
+                            await roomRef.set({ created: Date.now(), createdBy: this.userId });
                         }
                     }
-                    
+
                     await this.initializeMedia();
-                    
-                    // Show call page
+
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
-                    
-                    // Setup Firebase listeners
+
                     this.setupFirebaseListeners();
-                    
-                    // Set active session cookie
                     this.setActiveSession(roomCode);
-                    
-                    // Start stream health monitoring
                     this.startStreamHealthMonitoring();
-                    
                     this.isInitialized = true;
-                    
+
                     this.showToast(`Joined room: ${roomCode}`);
-                    
                 } catch (error) {
                     console.error('Error joining room:', error);
                     this.showToast('Failed to join room');
@@ -1546,174 +1494,101 @@
                 }
             }
 
+            // ── Media ───────────────────────────────────────────────────────────────
+
             async initializeMedia() {
+                const constraints = {
+                    video: { width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 }, facingMode: 'user' },
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                };
+
                 try {
-                    const constraints = {
-                        video: {
-                            width: { ideal: 1280, max: 1920 },
-                            height: { ideal: 720, max: 1080 },
-                            facingMode: 'user'
-                        },
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true
-                        }
-                    };
-                    
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    console.log('🎥 Media initialized successfully');
-                    
-                    // Apply saved mute states
-                    if (this.isAudioMuted) {
-                        const audioTrack = this.localStream.getAudioTracks()[0];
-                        if (audioTrack) audioTrack.enabled = false;
-                    }
-                    
-                    if (this.isVideoMuted) {
-                        const videoTrack = this.localStream.getVideoTracks()[0];
-                        if (videoTrack) videoTrack.enabled = false;
-                    }
-                    
-                    // Add listeners for track ended events
-                    this.localStream.getTracks().forEach(track => {
-                        track.onended = () => {
-                            console.log(`Track ended: ${track.kind}`);
-                            this.handleTrackEnded(track.kind);
-                        };
-                        
-                        track.onmute = () => {
-                            console.log(`Track muted: ${track.kind}`);
-                        };
-                        
-                        track.onunmute = () => {
-                            console.log(`Track unmuted: ${track.kind}`);
-                        };
-                    });
-                    
-                    // Add local video to grid
-                    this.addLocalVideo();
-                    
-                } catch (error) {
-                    console.error('Media initialization error:', error);
-                    
-                    // Try with basic constraints as fallback
-                    try {
-                        this.localStream = await navigator.mediaDevices.getUserMedia({
-                            video: true,
-                            audio: true
-                        });
-                        console.log('📹 Media initialized with basic constraints');
-                        
-                        // Apply saved mute states
-                        if (this.isAudioMuted) {
-                            const audioTrack = this.localStream.getAudioTracks()[0];
-                            if (audioTrack) audioTrack.enabled = false;
-                        }
-                        
-                        if (this.isVideoMuted) {
-                            const videoTrack = this.localStream.getVideoTracks()[0];
-                            if (videoTrack) videoTrack.enabled = false;
-                        }
-                        
-                        // Add listeners for track ended events
-                        this.localStream.getTracks().forEach(track => {
-                            track.onended = () => {
-                                console.log(`Track ended: ${track.kind}`);
-                                this.handleTrackEnded(track.kind);
-                            };
-                        });
-                        
-                        this.addLocalVideo();
-                    } catch (fallbackError) {
-                        this.showToast('Camera and microphone access is required');
-                        throw error;
-                    }
+                } catch (err) {
+                    console.warn('HD constraints failed, trying basic:', err);
+                    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 }
+
+                const stream = this.localStream;
+                if (!stream) {
+                    this.showToast('Camera and microphone access is required');
+                    throw new Error('No media stream');
+                }
+
+                // Apply saved preferences
+                const audioTrack = stream.getAudioTracks()[0];
+                const videoTrack = stream.getVideoTracks()[0];
+                if (audioTrack) audioTrack.enabled = !this.isAudioMuted;
+                if (videoTrack) videoTrack.enabled = !this.isVideoMuted;
+
+                stream.getTracks().forEach(track => {
+                    track.onended = () => {
+                        console.log(`Track ended: ${track.kind}`);
+                        this.handleTrackEnded(track.kind);
+                    };
+                });
+
+                this.addLocalVideo();
+                console.log('🎥 Media initialized');
             }
 
             handleTrackEnded(trackKind) {
-                console.log(`Handling ended ${trackKind} track`);
                 this.showReconnectionBanner(`${trackKind} stream ended`);
-                
-                // Attempt to reconnect
                 this.attemptReconnection();
             }
 
             startStreamHealthMonitoring() {
-                // Clear any existing interval
-                if (this.streamHealthInterval) {
-                    clearInterval(this.streamHealthInterval);
-                }
-                
-                // Check stream health every 10 seconds
-                this.streamHealthInterval = setInterval(() => {
-                    this.checkStreamHealth();
-                }, 10000);
+                if (this.streamHealthInterval) clearInterval(this.streamHealthInterval);
+                this.streamHealthInterval = setInterval(() => this.checkStreamHealth(), 10000);
             }
 
+            // FIX #4: Properly check readyState even when tracks are intentionally disabled
             checkStreamHealth() {
                 if (!this.localStream) {
-                    console.log('No local stream, health check failed');
                     this.streamHealthy = false;
                     this.showReconnectionBanner('No video stream');
                     this.attemptReconnection();
                     return;
                 }
-                
+
                 const videoTrack = this.localStream.getVideoTracks()[0];
                 const audioTrack = this.localStream.getAudioTracks()[0];
-                
-                // Check if tracks are still active
-                if ((videoTrack && !videoTrack.enabled) || (audioTrack && !audioTrack.enabled)) {
-                    // This is normal if user muted
-                    this.streamHealthy = true;
-                    this.hideReconnectionBanner();
-                    return;
-                }
-                
-                // Check if tracks are still ready
-                if ((videoTrack && videoTrack.readyState !== 'live') || 
-                    (audioTrack && audioTrack.readyState !== 'live')) {
-                    console.log('Stream health check failed - tracks not live');
+
+                // Check readyState regardless of enabled/disabled
+                const videoOk = !videoTrack || videoTrack.readyState === 'live';
+                const audioOk = !audioTrack || audioTrack.readyState === 'live';
+
+                if (!videoOk || !audioOk) {
+                    console.log('Stream health check failed — tracks not live');
                     this.streamHealthy = false;
                     this.showReconnectionBanner('Stream quality degraded');
                     this.attemptReconnection();
                 } else {
                     this.streamHealthy = true;
                     this.hideReconnectionBanner();
-                    this.reconnectAttempts = 0; // Reset reconnect attempts on healthy stream
+                    this.reconnectAttempts = 0;
                 }
             }
 
             async attemptReconnection() {
                 if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                    console.log('Max reconnection attempts reached');
-                    this.showToast('Unable to recover stream. Please refresh the page.');
+                    // FIX #14: Important toast stays 5 seconds
+                    this.showToast('Unable to recover stream. Please refresh the page.', true);
                     return;
                 }
-                
                 this.reconnectAttempts++;
-                console.log(`Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
-                
-                // Clear any existing reconnect timeout
-                if (this.reconnectTimeout) {
-                    clearTimeout(this.reconnectTimeout);
-                }
-                
-                // Wait a bit before attempting reconnection
+                if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = setTimeout(async () => {
                     try {
                         await this.reinitializeMedia();
                     } catch (error) {
                         console.error('Reconnection failed:', error);
-                        this.attemptReconnection(); // Try again
+                        this.attemptReconnection();
                     }
-                }, 2000 * this.reconnectAttempts); // Exponential backoff
+                }, 2000 * this.reconnectAttempts);
             }
 
             async forceReconnect() {
-                console.log('Manual reconnection triggered');
                 this.showLoading(true, 'Reconnecting...');
                 this.reconnectAttempts = 0;
                 await this.reinitializeMedia();
@@ -1721,152 +1596,105 @@
             }
 
             async reinitializeMedia() {
-                console.log('Reinitializing media...');
-                
-                // Stop existing tracks
                 if (this.localStream) {
-                    this.localStream.getTracks().forEach(track => {
+                    this.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+                }
+
+                const constraints = {
+                    video: { width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 }, facingMode: 'user' },
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                };
+
+                const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                const audioTrack = newStream.getAudioTracks()[0];
+                const videoTrack = newStream.getVideoTracks()[0];
+                if (audioTrack) audioTrack.enabled = !this.isAudioMuted;
+                if (videoTrack) videoTrack.enabled = !this.isVideoMuted;
+
+                newStream.getTracks().forEach(track => {
+                    track.onended = () => this.handleTrackEnded(track.kind);
+                });
+
+                // Update local video
+                const localContainer = document.getElementById(`container-${this.userId}`);
+                if (localContainer) {
+                    const video = localContainer.querySelector('video');
+                    if (video) {
+                        video.srcObject = newStream;
+                        video.play().catch(e => console.error('Error playing video:', e));
+                    }
+                }
+
+                // Update peers
+                this.peers.forEach((peer, peerId) => {
+                    if (peer && peer._pc) {
                         try {
-                            track.stop();
-                        } catch (e) {}
-                    });
-                }
-                
-                try {
-                    // Request new stream
-                    const constraints = {
-                        video: {
-                            width: { ideal: 1280, max: 1920 },
-                            height: { ideal: 720, max: 1080 },
-                            facingMode: 'user'
-                        },
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true
-                        }
-                    };
-                    
-                    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    
-                    // Apply saved mute states
-                    if (this.isAudioMuted) {
-                        const audioTrack = newStream.getAudioTracks()[0];
-                        if (audioTrack) audioTrack.enabled = false;
-                    }
-                    
-                    if (this.isVideoMuted) {
-                        const videoTrack = newStream.getVideoTracks()[0];
-                        if (videoTrack) videoTrack.enabled = false;
-                    }
-                    
-                    // Add listeners for new tracks
-                    newStream.getTracks().forEach(track => {
-                        track.onended = () => {
-                            console.log(`New track ended: ${track.kind}`);
-                            this.handleTrackEnded(track.kind);
-                        };
-                    });
-                    
-                    // Update local video element
-                    const localContainer = document.getElementById(`container-${this.userId}`);
-                    if (localContainer) {
-                        const video = localContainer.querySelector('video');
-                        if (video) {
-                            video.srcObject = newStream;
-                            video.play().catch(e => console.error('Error playing video:', e));
+                            newStream.getTracks().forEach(track => {
+                                const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === track.kind);
+                                if (sender) sender.replaceTrack(track);
+                            });
+                        } catch (e) {
+                            console.error('Error updating peer tracks:', e);
+                            this.reconnectPeer(peerId);
                         }
                     }
-                    
-                    // Update all peers with new tracks
-                    this.peers.forEach((peer, peerId) => {
-                        if (peer) {
-                            try {
-                                // Replace tracks in peer connection
-                                newStream.getTracks().forEach(track => {
-                                    const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === track.kind);
-                                    if (sender) {
-                                        sender.replaceTrack(track);
-                                    }
-                                });
-                            } catch (e) {
-                                console.error('Error updating peer tracks:', e);
-                                // If can't update, recreate connection
-                                this.reconnectPeer(peerId);
-                            }
-                        }
-                    });
-                    
-                    this.localStream = newStream;
-                    this.streamHealthy = true;
-                    this.hideReconnectionBanner();
-                    this.showToast('Stream recovered successfully');
-                    
-                    console.log('Media reinitialized successfully');
-                    
-                } catch (error) {
-                    console.error('Failed to reinitialize media:', error);
-                    throw error;
-                }
+                });
+
+                this.localStream = newStream;
+                this.streamHealthy = true;
+                this.hideReconnectionBanner();
+                this.showToast('Stream recovered successfully');
             }
 
             reconnectPeer(peerId) {
                 console.log('Reconnecting to peer:', peerId);
-                
-                // Destroy old peer connection
-                if (this.peers.has(peerId)) {
-                    const oldPeer = this.peers.get(peerId);
-                    try {
-                        oldPeer.destroy();
-                    } catch (e) {}
+                const oldPeer = this.peers.get(peerId);
+                if (oldPeer) {
+                    try { oldPeer.destroy(); } catch (e) {}
                     this.peers.delete(peerId);
                 }
-                
-                // Remove video container
-                const container = document.getElementById(`container-${peerId}`);
-                if (container) {
-                    container.remove();
+
+                // FIX #6: Clear quality interval for this peer
+                if (this.qualityIntervals.has(peerId)) {
+                    clearInterval(this.qualityIntervals.get(peerId));
+                    this.qualityIntervals.delete(peerId);
                 }
-                
-                // Create new connection
-                setTimeout(() => {
-                    this.connectToPeer(peerId, true);
-                }, 1000);
+
+                const container = document.getElementById(`container-${peerId}`);
+                if (container) container.remove();
+                this.updateEmptyState();
+
+                setTimeout(() => this.connectToPeer(peerId, true), 1000);
             }
+
+            // ── Local video ─────────────────────────────────────────────────────────
 
             addLocalVideo() {
                 const container = document.createElement('div');
-                container.className = 'video-container local-video';
-                if (this.isVideoMuted) {
-                    container.classList.add('video-off');
-                }
+                container.className = 'video-container local-video' + (this.isVideoMuted ? ' video-off' : '');
                 container.id = `container-${this.userId}`;
-                
+
                 const video = document.createElement('video');
                 video.srcObject = this.localStream;
                 video.autoplay = true;
                 video.playsInline = true;
                 video.muted = true;
-                
-                // Add avatar element
+
                 const avatar = document.createElement('div');
                 avatar.className = 'avatar';
                 avatar.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-6 2-6 4h12c0-2-2-4-6-4z"/></svg>`;
-                
+
                 const name = document.createElement('span');
                 name.className = 'participant-name';
                 name.textContent = 'You';
-                
+
                 const audioIndicator = document.createElement('div');
-                audioIndicator.className = 'audio-indicator';
-                if (this.isAudioMuted) {
-                    audioIndicator.classList.add('muted');
-                    audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">';
-                } else {
-                    audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
-                }
-                
-                // Add PiP button
+                audioIndicator.className = 'audio-indicator' + (this.isAudioMuted ? ' muted' : '');
+                audioIndicator.innerHTML = this.isAudioMuted
+                    ? '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">'
+                    : '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
+
                 const pipBtn = document.createElement('button');
                 pipBtn.className = 'pip-btn';
                 pipBtn.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828884.png" alt="PiP">';
@@ -1874,111 +1702,115 @@
                     e.stopPropagation();
                     this.togglePictureInPicture(video);
                 };
-                
+
                 container.appendChild(video);
                 container.appendChild(avatar);
                 container.appendChild(name);
                 container.appendChild(audioIndicator);
                 container.appendChild(pipBtn);
                 this.videoGrid.appendChild(container);
-                
-                // Update mute button state
-                if (this.isAudioMuted) {
-                    this.muteBtn.classList.remove('active');
-                } else {
-                    this.muteBtn.classList.add('active');
-                }
-                
-                if (this.isVideoMuted) {
-                    this.videoBtn.classList.remove('active');
-                } else {
-                    this.videoBtn.classList.add('active');
-                }
-                
-                // Handle play() promise correctly
-                const playPromise = video.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise
-                        .then(() => {
-                            console.log('Local video playing');
-                        })
-                        .catch(error => {
-                            console.error('Local video play error:', error.name);
-                        });
-                }
+
+                this.muteBtn.classList.toggle('active', !this.isAudioMuted);
+                this.videoBtn.classList.toggle('active', !this.isVideoMuted);
+
+                video.play().catch(e => console.error('Local video play error:', e.name));
+
+                // FIX #13: update empty state after adding local video
+                this.updateEmptyState();
             }
 
             togglePictureInPicture(videoElement) {
                 if (document.pictureInPictureElement) {
                     document.exitPictureInPicture()
                         .then(() => this.showToast('Exited Picture-in-Picture'))
-                        .catch(error => console.error('PiP error:', error));
+                        .catch(e => console.error('PiP error:', e));
                 } else {
                     videoElement.requestPictureInPicture()
                         .then(() => this.showToast('Picture-in-Picture mode enabled'))
-                        .catch(error => {
-                            console.error('PiP error:', error);
+                        .catch(e => {
+                            console.error('PiP error:', e);
                             this.showToast('Picture-in-Picture not supported');
                         });
                 }
             }
 
-            updateConnectionQuality(peerId, quality) {
-                this.connectionQuality.set(peerId, quality);
-                
-                const container = document.getElementById(`container-${peerId}`);
-                if (!container) return;
-                
-                let qualityIndicator = container.querySelector('.connection-quality');
-                if (!qualityIndicator) {
-                    qualityIndicator = document.createElement('div');
-                    qualityIndicator.className = 'connection-quality';
-                    container.appendChild(qualityIndicator);
-                }
-                
-                // Update quality dots
-                qualityIndicator.innerHTML = '';
-                for (let i = 0; i < 4; i++) {
-                    const dot = document.createElement('span');
-                    dot.className = 'quality-dot';
-                    if (i < quality) {
-                        if (quality >= 4) dot.classList.add('excellent');
-                        else if (quality >= 3) dot.classList.add('good');
-                        else if (quality >= 2) dot.classList.add('fair');
-                        else dot.classList.add('poor');
+            // FIX #5: Measure actual WebRTC stats instead of random numbers
+            async measureConnectionQuality(peer, peerId) {
+                if (!peer || !peer._pc) return;
+                try {
+                    const stats = await peer._pc.getStats();
+                    let totalPacketsLost = 0;
+                    let totalPackets = 0;
+                    let rttMs = null;
+
+                    stats.forEach(report => {
+                        if (report.type === 'inbound-rtp' && report.mediaType === 'video') {
+                            totalPacketsLost += report.packetsLost || 0;
+                            totalPackets += (report.packetsReceived || 0) + (report.packetsLost || 0);
+                        }
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            if (report.currentRoundTripTime != null) {
+                                rttMs = report.currentRoundTripTime * 1000;
+                            }
+                        }
+                    });
+
+                    const lossRate = totalPackets > 0 ? totalPacketsLost / totalPackets : 0;
+
+                    let quality;
+                    if (rttMs !== null) {
+                        if (rttMs < 100 && lossRate < 0.01) quality = 4;       // excellent
+                        else if (rttMs < 200 && lossRate < 0.03) quality = 3;  // good
+                        else if (rttMs < 400 && lossRate < 0.08) quality = 2;  // fair
+                        else quality = 1;                                        // poor
+                    } else {
+                        // No RTT data yet — show neutral
+                        quality = lossRate < 0.03 ? 3 : lossRate < 0.08 ? 2 : 1;
                     }
-                    qualityIndicator.appendChild(dot);
+
+                    this.updateConnectionQuality(peerId, quality);
+                } catch (e) {
+                    console.warn('getStats failed for peer', peerId, e);
                 }
             }
 
+            updateConnectionQuality(peerId, quality) {
+                this.connectionQuality.set(peerId, quality);
+                const container = document.getElementById(`container-${peerId}`);
+                if (!container) return;
+
+                let indicator = container.querySelector('.connection-quality');
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.className = 'connection-quality';
+                    container.appendChild(indicator);
+                }
+
+                indicator.innerHTML = '';
+                const levels = ['poor', 'fair', 'good', 'excellent'];
+                for (let i = 0; i < 4; i++) {
+                    const dot = document.createElement('span');
+                    dot.className = 'quality-dot';
+                    if (i < quality) dot.classList.add(levels[Math.min(quality - 1, 3)]);
+                    indicator.appendChild(dot);
+                }
+            }
+
+            // ── Firebase ────────────────────────────────────────────────────────────
+
             setupFirebaseListeners() {
                 if (!database || !this.roomId) return;
-
-                console.log('🔊 Setting up Firebase listeners for room:', this.roomId);
+                console.log('Setting up Firebase listeners for room:', this.roomId);
 
                 const roomRef = database.ref(`rooms/${this.roomId}`);
-                
-                // Participant listeners
-                roomRef.child('participants').on('child_added', (snapshot) => {
-                    const participantId = snapshot.key;
-                    if (participantId !== this.userId) {
-                        console.log('👤 Participant found in room:', participantId);
-                        
-                        if (!this.peers.has(participantId) && this.localStream) {
-                            setTimeout(() => {
-                                if (!this.peers.has(participantId)) {
-                                    this.connectToPeer(participantId, true);
-                                }
-                            }, 1000);
-                        }
-                    }
-                });
 
-                roomRef.child('participants').on('child_added', (snapshot) => {
+                // FIX #1: Single child_added listener — no duplicate registration
+                const participantsRef = roomRef.child('participants');
+
+                const onParticipantAdded = participantsRef.on('child_added', (snapshot) => {
                     const participantId = snapshot.key;
                     if (participantId !== this.userId && !this.peers.has(participantId) && this.localStream) {
-                        console.log('👤 New participant joined:', participantId);
+                        console.log('New participant joined:', participantId);
                         const delay = Math.random() * 1000 + 500;
                         setTimeout(() => {
                             if (!this.peers.has(participantId)) {
@@ -1989,96 +1821,90 @@
                     this.updateParticipantCount(roomRef);
                 });
 
-                roomRef.child('participants').on('child_removed', (snapshot) => {
+                const onParticipantRemoved = participantsRef.on('child_removed', (snapshot) => {
                     const participantId = snapshot.key;
-                    console.log('👋 Participant left:', participantId);
+                    console.log('Participant left:', participantId);
                     this.removeParticipant(participantId);
                     this.updateParticipantCount(roomRef);
-                    
-                    // Check if room should be cleaned up
                     this.checkAndCleanupRoom(roomRef);
                 });
 
                 // Chat listener
-                roomRef.child('messages').on('child_added', (snapshot) => {
+                const messagesRef = roomRef.child('messages');
+                const onMessage = messagesRef.on('child_added', (snapshot) => {
                     const message = snapshot.val();
                     this.displayMessage(message);
                 });
 
-                // Signaling
+                // Signaling listener
                 const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
-
-                signalsRef.on('child_added', (snapshot) => {
+                const onSignal = signalsRef.on('child_added', (snapshot) => {
                     const signal = snapshot.val();
-                    if (signal.target === this.userId && signal.from !== this.userId) {
-                        console.log('📨 Received signal from:', signal.from, 'type:', signal.signal.type);
+                    if (signal && signal.target === this.userId && signal.from !== this.userId) {
+                        console.log('Received signal from:', signal.from, 'type:', signal.signal?.type);
                         this.handleSignal(signal);
                     }
-                    // Clean up signals after processing
-                    setTimeout(() => snapshot.ref.remove(), 5000);
+                    // FIX #7: Extended cleanup window — 30s to allow slow peers to receive signals
+                    setTimeout(() => snapshot.ref.remove(), 30000);
                 });
 
-                // Add ourselves to participants
-                const participantRef = roomRef.child('participants').child(this.userId);
-                participantRef.set({
-                    timestamp: Date.now(),
-                    userId: this.userId
-                });
-                
-                // Auto-remove when disconnected
+                // FIX #10: Store references for cleanup on leave
+                this.firebaseListeners = [
+                    { ref: participantsRef, event: 'child_added', fn: onParticipantAdded },
+                    { ref: participantsRef, event: 'child_removed', fn: onParticipantRemoved },
+                    { ref: messagesRef, event: 'child_added', fn: onMessage },
+                    { ref: signalsRef, event: 'child_added', fn: onSignal }
+                ];
+
+                // Register self
+                const participantRef = participantsRef.child(this.userId);
+                participantRef.set({ timestamp: Date.now(), userId: this.userId });
                 participantRef.onDisconnect().remove();
 
-                // Initial participant count
                 this.updateParticipantCount(roomRef);
+            }
+
+            // FIX #10: Tear down all Firebase listeners
+            tearDownFirebaseListeners() {
+                this.firebaseListeners.forEach(({ ref, event, fn }) => {
+                    try { ref.off(event, fn); } catch (e) {}
+                });
+                this.firebaseListeners = [];
             }
 
             updateParticipantCount(roomRef) {
                 roomRef.child('participants').once('value', (snap) => {
                     const count = snap.val() ? Object.keys(snap.val()).length : 0;
                     this.participantCount.textContent = count;
-                    console.log(`Room has ${count} participants`);
                 });
             }
 
             checkAndCleanupRoom(roomRef) {
                 roomRef.child('participants').once('value', (snap) => {
-                    const participants = snap.val();
-                    const count = participants ? Object.keys(participants).length : 0;
-                    
-                    if (count === 0) {
-                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
+                    if (!snap.exists() || snap.numChildren() === 0) {
                         roomRef.remove()
-                            .then(() => {
-                                console.log(`✅ Room ${this.roomId} deleted successfully`);
-                            })
-                            .catch((error) => {
-                                console.error(`❌ Failed to delete room ${this.roomId}:`, error);
-                            });
+                            .then(() => console.log(`Room ${this.roomId} deleted`))
+                            .catch(e => console.error('Failed to delete room:', e));
                     }
                 });
             }
 
-            connectToPeer(peerId, initiator = false) {
-                if (this.peers.has(peerId)) {
-                    console.log('Connection already exists for peer:', peerId);
-                    return;
-                }
+            // ── Peer connections ────────────────────────────────────────────────────
 
+            connectToPeer(peerId, initiator = false) {
+                if (this.peers.has(peerId)) return;
                 if (!this.localStream) {
-                    console.log('No local stream yet, delaying connection to:', peerId);
                     setTimeout(() => {
-                        if (!this.peers.has(peerId) && this.localStream) {
-                            this.connectToPeer(peerId, initiator);
-                        }
+                        if (!this.peers.has(peerId) && this.localStream) this.connectToPeer(peerId, initiator);
                     }, 1000);
                     return;
                 }
 
-                console.log('🔌 Connecting to peer:', peerId, 'initiator:', initiator);
+                console.log('Connecting to peer:', peerId, 'initiator:', initiator);
 
                 try {
                     const peer = new SimplePeer({
-                        initiator: initiator,
+                        initiator,
                         stream: this.localStream,
                         trickle: true,
                         config: {
@@ -2096,60 +1922,48 @@
                         }
                     });
 
-                    let iceConnectionState = 'new';
-                    let connectionState = 'new';
-
                     peer.on('signal', (signal) => {
                         if (database && this.roomId) {
-                            console.log('📤 Sending signal to:', peerId, 'type:', signal.type);
                             database.ref(`rooms/${this.roomId}/signals`).push({
                                 from: this.userId,
                                 target: peerId,
-                                signal: signal,
+                                signal,
                                 timestamp: Date.now()
                             });
                         }
                     });
 
                     peer.on('stream', (stream) => {
-                        console.log('📡 Received stream from peer:', peerId);
+                        console.log('Received stream from peer:', peerId);
                         this.addRemoteVideo(stream, peerId);
                     });
 
                     peer.on('close', () => {
-                        console.log('🔒 Peer connection closed:', peerId);
+                        console.log('Peer connection closed:', peerId);
                         this.removeParticipant(peerId);
                     });
 
                     peer.on('error', (err) => {
-                        console.error('⚠️ Peer connection error:', peerId, err.message);
-                        // Attempt to reconnect on error
+                        console.error('Peer error:', peerId, err.message);
                         setTimeout(() => {
-                            if (this.roomId && this.localStream) {
-                                this.reconnectPeer(peerId);
-                            }
+                            if (this.roomId && this.localStream) this.reconnectPeer(peerId);
                         }, 2000);
                     });
 
                     peer.on('connect', () => {
-                        console.log('✅ Peer connection established:', peerId);
-                        // Reset reconnect attempts on successful connection
+                        console.log('Peer connection established:', peerId);
                         this.reconnectAttempts = 0;
-                        
-                        // Simulate connection quality (in real app, you'd measure actual stats)
-                        setInterval(() => {
-                            const quality = Math.floor(Math.random() * 4) + 1; // 1-4
-                            this.updateConnectionQuality(peerId, quality);
+
+                        // FIX #5 & #6: Use real stats; store interval ref for cleanup
+                        const qualityInterval = setInterval(() => {
+                            this.measureConnectionQuality(peer, peerId);
                         }, 5000);
+                        this.qualityIntervals.set(peerId, qualityInterval);
                     });
 
-                    // Monitor ICE connection state
                     peer.on('iceStateChange', (state) => {
-                        iceConnectionState = state;
                         console.log(`ICE state for ${peerId}:`, state);
-                        
                         if (state === 'failed' || state === 'disconnected') {
-                            console.log(`ICE connection ${state} for ${peerId}, attempting recovery...`);
                             setTimeout(() => {
                                 if (this.roomId && this.localStream && !this.peers.has(peerId)) {
                                     this.reconnectPeer(peerId);
@@ -2159,49 +1973,45 @@
                     });
 
                     this.peers.set(peerId, peer);
-
                 } catch (error) {
                     console.error('Error creating peer connection:', error);
                 }
             }
 
+            // FIX #8: Robust signal handling with retry queue
             handleSignal(signal) {
-                if (!this.peers.has(signal.from)) {
-                    console.log('Creating peer for signal from:', signal.from);
-                    
-                    setTimeout(() => {
-                        if (!this.peers.has(signal.from)) {
-                            this.connectToPeer(signal.from, false);
-                            
-                            setTimeout(() => {
-                                const peer = this.peers.get(signal.from);
-                                if (peer) {
-                                    try {
-                                        peer.signal(signal.signal);
-                                    } catch (error) {
-                                        console.error('Error signaling peer:', error);
-                                    }
-                                }
-                            }, 500);
+                const fromId = signal.from;
+
+                if (!this.peers.has(fromId)) {
+                    // Create peer as non-initiator, then signal once ready
+                    this.connectToPeer(fromId, false);
+
+                    // Poll until the peer object is available, up to 3 seconds
+                    let attempts = 0;
+                    const trySignal = () => {
+                        const peer = this.peers.get(fromId);
+                        if (peer) {
+                            try { peer.signal(signal.signal); } catch (e) { console.error('Signal error:', e); }
+                        } else if (attempts < 6) {
+                            attempts++;
+                            setTimeout(trySignal, 500);
+                        } else {
+                            console.warn('Gave up signaling peer', fromId);
                         }
-                    }, 200);
+                    };
+                    setTimeout(trySignal, 200);
                 } else {
-                    const peer = this.peers.get(signal.from);
-                    try {
-                        peer.signal(signal.signal);
-                    } catch (error) {
-                        console.error('Error signaling peer:', error);
-                    }
+                    const peer = this.peers.get(fromId);
+                    try { peer.signal(signal.signal); } catch (e) { console.error('Signal error:', e); }
                 }
             }
 
+            // ── Remote video ────────────────────────────────────────────────────────
+
             addRemoteVideo(stream, userId) {
-                if (document.getElementById(`container-${userId}`)) {
-                    console.log('Video container already exists for:', userId);
-                    
-                    // Update existing video element with new stream
-                    const container = document.getElementById(`container-${userId}`);
-                    const video = container.querySelector('video');
+                const existing = document.getElementById(`container-${userId}`);
+                if (existing) {
+                    const video = existing.querySelector('video');
                     if (video && video.srcObject !== stream) {
                         video.srcObject = stream;
                         video.play().catch(e => console.error('Error playing video:', e));
@@ -2218,7 +2028,6 @@
                 video.autoplay = true;
                 video.playsInline = true;
 
-                // Add avatar element
                 const avatar = document.createElement('div');
                 avatar.className = 'avatar';
                 avatar.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-4 0-6 2-6 4h12c0-2-2-4-6-4z"/></svg>`;
@@ -2231,7 +2040,6 @@
                 audioIndicator.className = 'audio-indicator';
                 audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
 
-                // Add connection quality indicator
                 const qualityIndicator = document.createElement('div');
                 qualityIndicator.className = 'connection-quality';
                 for (let i = 0; i < 4; i++) {
@@ -2247,145 +2055,108 @@
                 container.appendChild(qualityIndicator);
                 this.videoGrid.appendChild(container);
 
-                // Handle play() promise correctly
-                const playPromise = video.play();
+                // FIX #13: Update empty state
+                this.updateEmptyState();
 
-                if (playPromise !== undefined) {
-                    playPromise
-                        .then(() => {
-                            console.log('Remote video playing for:', userId);
-                        })
-                        .catch(error => {
-                            console.error('Remote video play error for', userId, ':', error.name);
-                            
-                            // Retry playing after a short delay
-                            setTimeout(() => {
-                                video.play().catch(e => console.log('Retry play failed:', e));
-                            }, 1000);
-                        });
-                }
+                video.play().catch(e => {
+                    console.error('Remote video play error:', e.name);
+                    setTimeout(() => video.play().catch(() => {}), 1000);
+                });
             }
 
             removeParticipant(userId) {
-                if (this.peers.has(userId)) {
-                    const peer = this.peers.get(userId);
-                    peer.destroy();
+                const peer = this.peers.get(userId);
+                if (peer) {
+                    try { peer.destroy(); } catch (e) {}
                     this.peers.delete(userId);
                     this.connectionQuality.delete(userId);
                 }
 
-                const container = document.getElementById(`container-${userId}`);
-                if (container) {
-                    container.remove();
+                // FIX #6: Clear quality interval on removal
+                if (this.qualityIntervals.has(userId)) {
+                    clearInterval(this.qualityIntervals.get(userId));
+                    this.qualityIntervals.delete(userId);
                 }
+
+                const container = document.getElementById(`container-${userId}`);
+                if (container) container.remove();
+
+                this.updateEmptyState();
             }
 
+            // ── Controls ─────────────────────────────────────────────────────────────
+
             toggleAudio() {
-                if (this.localStream) {
-                    const audioTrack = this.localStream.getAudioTracks()[0];
-                    if (audioTrack) {
-                        audioTrack.enabled = !audioTrack.enabled;
-                        this.isAudioMuted = !audioTrack.enabled;
-                        
-                        const indicator = document.querySelector(`#container-${this.userId} .audio-indicator`);
-                        if (indicator) {
-                            if (this.isAudioMuted) {
-                                indicator.classList.add('muted');
-                                indicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">';
-                            } else {
-                                indicator.classList.remove('muted');
-                                indicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
-                            }
-                        }
-                        
-                        if (this.isAudioMuted) {
-                            this.muteBtn.classList.remove('active');
-                        } else {
-                            this.muteBtn.classList.add('active');
-                        }
-                        
-                        // Save preferences
-                        this.saveUserPreferences();
-                        
-                        this.showToast(this.isAudioMuted ? 'Microphone muted' : 'Microphone unmuted');
-                    }
+                if (!this.localStream) return;
+                const audioTrack = this.localStream.getAudioTracks()[0];
+                if (!audioTrack) return;
+
+                audioTrack.enabled = !audioTrack.enabled;
+                this.isAudioMuted = !audioTrack.enabled;
+
+                const indicator = document.querySelector(`#container-${this.userId} .audio-indicator`);
+                if (indicator) {
+                    indicator.classList.toggle('muted', this.isAudioMuted);
+                    indicator.innerHTML = this.isAudioMuted
+                        ? '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">'
+                        : '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
                 }
+                this.muteBtn.classList.toggle('active', !this.isAudioMuted);
+                this.saveUserPreferences();
+                this.showToast(this.isAudioMuted ? 'Microphone muted' : 'Microphone unmuted');
             }
 
             toggleVideo() {
-                if (this.localStream) {
-                    const videoTrack = this.localStream.getVideoTracks()[0];
-                    if (videoTrack) {
-                        videoTrack.enabled = !videoTrack.enabled;
-                        this.isVideoMuted = !videoTrack.enabled;
-                        
-                        const container = document.getElementById(`container-${this.userId}`);
-                        if (container) {
-                            if (this.isVideoMuted) {
-                                container.classList.add('video-off');
-                            } else {
-                                container.classList.remove('video-off');
-                            }
-                        }
-                        
-                        if (this.isVideoMuted) {
-                            this.videoBtn.classList.remove('active');
-                        } else {
-                            this.videoBtn.classList.add('active');
-                        }
-                        
-                        // Save preferences
-                        this.saveUserPreferences();
-                        
-                        this.showToast(this.isVideoMuted ? 'Video paused' : 'Video resumed');
-                    }
-                }
+                if (!this.localStream) return;
+                const videoTrack = this.localStream.getVideoTracks()[0];
+                if (!videoTrack) return;
+
+                videoTrack.enabled = !videoTrack.enabled;
+                this.isVideoMuted = !videoTrack.enabled;
+
+                const container = document.getElementById(`container-${this.userId}`);
+                if (container) container.classList.toggle('video-off', this.isVideoMuted);
+
+                this.videoBtn.classList.toggle('active', !this.isVideoMuted);
+                this.saveUserPreferences();
+                this.showToast(this.isVideoMuted ? 'Video paused' : 'Video resumed');
             }
 
             toggleChat() {
                 this.chatPanel.classList.toggle('open');
             }
 
+            // FIX #12: Server-side rate limiting should also be added via Firebase Security Rules
             sendMessage() {
                 const text = this.chatInput.value.trim();
                 if (!text || !database || !this.roomId) return;
-                
+
+                // Client-side guard: strip tags via escapeHtml on display, nothing extra needed here
                 const message = {
                     from: this.userId,
                     text: text,
                     timestamp: Date.now(),
                     senderName: 'You'
                 };
-                
+
                 database.ref(`rooms/${this.roomId}/messages`).push(message)
-                    .then(() => {
-                        this.chatInput.value = '';
-                    })
-                    .catch(error => {
-                        console.error('Error sending message:', error);
+                    .then(() => { this.chatInput.value = ''; })
+                    .catch(e => {
+                        console.error('Error sending message:', e);
                         this.showToast('Failed to send message');
                     });
             }
 
             displayMessage(message) {
                 const messageDiv = document.createElement('div');
-                messageDiv.className = 'chat-message';
-                
-                if (message.from === this.userId) {
-                    messageDiv.classList.add('own-message');
-                }
-                
-                const time = new Date(message.timestamp).toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
-                
+                messageDiv.className = 'chat-message' + (message.from === this.userId ? ' own-message' : '');
+
+                const time = new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 messageDiv.innerHTML = `
                     <div class="message-sender">${message.from === this.userId ? 'You' : 'User ' + message.from.substr(-4)}</div>
                     <div class="message-text">${this.escapeHtml(message.text)}</div>
                     <div class="message-time">${time}</div>
                 `;
-                
                 this.chatMessagesContainer.appendChild(messageDiv);
                 this.chatMessagesContainer.scrollTop = this.chatMessagesContainer.scrollHeight;
             }
@@ -2396,173 +2167,117 @@
                 return div.innerHTML;
             }
 
-            // New method to copy full room link
             copyRoomLink() {
                 if (!this.roomId) return;
-                
-                // Get the base URL (without any query parameters)
-                const baseUrl = window.location.protocol + '//' + window.location.hostname + 
-                               (window.location.port ? ':' + window.location.port : '') + 
-                               window.location.pathname;
-                
-                // Create full URL with room parameter
+                const baseUrl = window.location.protocol + '//' + window.location.hostname +
+                    (window.location.port ? ':' + window.location.port : '') + window.location.pathname;
                 const fullUrl = baseUrl + '?room=' + this.roomId;
-                
-                navigator.clipboard.writeText(fullUrl).then(() => {
-                    this.showToast('Room link copied to clipboard!');
-                }).catch(() => {
-                    // Fallback for older browsers
-                    const textarea = document.createElement('textarea');
-                    textarea.value = fullUrl;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    this.showToast('Room link copied to clipboard!');
-                });
+                this.copyToClipboard(fullUrl, 'Room link copied to clipboard!');
             }
 
             copyRoomCode() {
                 if (!this.roomId) return;
-                
-                navigator.clipboard.writeText(this.roomId).then(() => {
-                    this.showToast('Room code copied!');
+                this.copyToClipboard(this.roomId, 'Room code copied!');
+            }
+
+            copyToClipboard(text, successMsg) {
+                navigator.clipboard.writeText(text).then(() => {
+                    this.showToast(successMsg);
                 }).catch(() => {
-                    // Fallback for older browsers
-                    const textarea = document.createElement('textarea');
-                    textarea.value = this.roomId;
-                    document.body.appendChild(textarea);
-                    textarea.select();
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
                     document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                    this.showToast('Room code copied!');
+                    document.body.removeChild(ta);
+                    this.showToast(successMsg);
                 });
             }
 
             async leaveCall(clearAllCookies = true) {
                 this.showLoading(true, 'Leaving call...');
-                
-                // Stop stream monitoring
+
+                // Stop monitoring
                 if (this.streamHealthInterval) {
                     clearInterval(this.streamHealthInterval);
                     this.streamHealthInterval = null;
                 }
-                
                 if (this.reconnectTimeout) {
                     clearTimeout(this.reconnectTimeout);
                     this.reconnectTimeout = null;
                 }
-                
-                // Close all peer connections
-                this.peers.forEach((peer) => {
-                    try {
-                        peer.destroy();
-                    } catch (e) {}
-                });
+
+                // FIX #6: Clear all quality intervals
+                this.qualityIntervals.forEach(id => clearInterval(id));
+                this.qualityIntervals.clear();
+
+                // FIX #10: Tear down Firebase listeners before leaving
+                this.tearDownFirebaseListeners();
+
+                // Destroy peers
+                this.peers.forEach(peer => { try { peer.destroy(); } catch (e) {} });
                 this.peers.clear();
-                
+
                 // Stop local media
                 if (this.localStream) {
-                    this.localStream.getTracks().forEach(track => {
-                        try {
-                            track.stop();
-                        } catch (e) {}
-                    });
+                    this.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
                     this.localStream = null;
                 }
-                
-                // Remove self and check if room should be deleted
+
+                // Remove self from Firebase, cleanup room if empty
                 if (database && this.roomId) {
                     const roomRef = database.ref(`rooms/${this.roomId}`);
-                    
-                    // Remove self from participants
-                    await roomRef.child('participants').child(this.userId).remove();
-                    
-                    // Check if room is empty and delete if needed
-                    const participants = await roomRef.child('participants').once('value');
-                    if (!participants.exists() || participants.numChildren() === 0) {
-                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
-                        await roomRef.remove();
-                        console.log(`✅ Room ${this.roomId} deleted successfully`);
+                    await roomRef.child('participants').child(this.userId).remove().catch(() => {});
+                    const participants = await roomRef.child('participants').once('value').catch(() => null);
+                    if (!participants || !participants.exists() || participants.numChildren() === 0) {
+                        await roomRef.remove().catch(() => {});
                     }
                 }
-                
-                // Clear cookies and storage for this user
+
+                // FIX #3: clearUserCookies is called but a genuinely new userId is only
+                // created on next getOrCreateUserId() call during next session — correct flow.
                 if (clearAllCookies) {
                     this.clearUserCookies();
-                    
-                    // Generate new user ID for next session
-                    this.userId = this.getOrCreateUserId();
-                    
-                    this.showToast('Session cleared. All cookies removed.');
                 } else {
-                    // Just clear session cookie, keep user ID
                     this.clearSessionCookie();
                 }
-                
-                // Clear video grid
+
                 this.videoGrid.innerHTML = '';
-                
-                // Clear chat messages
+                // Re-inject empty state placeholder for next session
+                this.videoGrid.appendChild(this.videoGridEmpty);
+
                 this.chatMessagesContainer.innerHTML = '';
-                
-                // Close chat panel
                 this.chatPanel.classList.remove('open');
-                
-                // Hide reconnection banner
                 this.hideReconnectionBanner();
-                
-                // Clear URL
+
                 window.history.replaceState({}, '', window.location.pathname);
-                
-                // Return to landing page
                 this.callPage.classList.remove('active');
                 this.landingPage.classList.add('active');
-                
+
                 this.showLoading(false);
                 this.showToast('Left the call');
             }
 
-            // Handle page unload (user closes tab)
             handlePageUnload() {
                 if (this.roomId && database) {
-                    // Remove user from room
-                    const roomRef = database.ref(`rooms/${this.roomId}`);
-                    roomRef.child('participants').child(this.userId).remove();
-                    
-                    // Check if room is empty
-                    roomRef.child('participants').once('value', (snap) => {
-                        if (!snap.exists() || snap.numChildren() === 0) {
-                            roomRef.remove();
-                        }
-                    });
-                    
-                    // Clear session cookie but keep user ID
+                    database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
                     this.clearSessionCookie();
                 }
             }
         }
 
-        // Add beforeunload event listener to handle tab close
+        // ── App bootstrap ──────────────────────────────────────────────────────────
+
         window.addEventListener('beforeunload', () => {
-            if (window.videoCallApp) {
-                window.videoCallApp.handlePageUnload();
-            }
+            if (window.videoCallApp) window.videoCallApp.handlePageUnload();
         });
 
-        // Start the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 DOM loaded, starting application...');
-            
-            // Check if SimplePeer is loaded
             if (typeof SimplePeer === 'undefined') {
-                console.error('SimplePeer library not loaded');
                 alert('Failed to load video call library. Please refresh the page.');
                 return;
             }
-            
             try {
-                // Store app instance globally for beforeunload handler
                 window.videoCallApp = new VideoCallApp();
             } catch (error) {
                 console.error('Failed to start application:', error);
@@ -2572,4 +2287,3 @@
     </script>
 </body>
 </html>
-
