@@ -446,6 +446,18 @@
         @media (max-width: 600px) {
             #thumbnail-strip { height: 90px; }
         }
+
+        /* ─── Browser extension iframe reposition ─── */
+        /* Repositions the nr-ext-rsicon extension button above the call controls */
+        #nr-ext-rsicon {
+            bottom: 90px !important;
+            top: auto !important;
+            right: 16px !important;
+            left: auto !important;
+            position: fixed !important;
+            z-index: 9999 !important;
+        }
+
         .call-controls {
             background: rgba(15,15,15,0.95);
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
@@ -1028,6 +1040,12 @@
 
             this.spotlightedId = targetId;
 
+            // Clear any previous spotlight keepalive
+            if (this._spotlightSyncInterval) {
+                clearInterval(this._spotlightSyncInterval);
+                this._spotlightSyncInterval = null;
+            }
+
             // Clear spotlight area (keep empty msg node)
             Array.from(this.spotlightArea.children).forEach(c => {
                 if (!c.classList.contains('video-grid-empty-msg')) c.remove();
@@ -1037,17 +1055,51 @@
             const clone = container.cloneNode(true);
             clone.id = `spotlight-clone-${targetId}`;
             clone.style.cssText = 'width:100%;height:100%;border-radius:0;border:none;box-shadow:none;aspect-ratio:unset;cursor:default;';
+
             // Sync the live video srcObject to the clone
             const origVideo = container.querySelector('video');
             const cloneVideo = clone.querySelector('video');
             if (origVideo && cloneVideo) {
                 cloneVideo.srcObject = origVideo.srcObject;
-                // CRITICAL: local video must ALWAYS be muted to prevent hearing your own mic
+                // CRITICAL: local video ALWAYS muted — never play your own mic back
                 const isLocal = (targetId === this.userId);
                 cloneVideo.muted = isLocal;
                 cloneVideo.volume = isLocal ? 0 : 1;
+                cloneVideo.autoplay = true;
+                cloneVideo.playsInline = true;
             }
+
             this.spotlightArea.appendChild(clone);
+
+            // Play the clone video
+            if (cloneVideo) {
+                cloneVideo.play().catch(() => {});
+            }
+
+            // ── Freeze prevention: periodically re-sync srcObject & kick play() ──
+            // The spotlight clone video can freeze because its srcObject is a copy
+            // of the stream reference — if the underlying track changes (flip camera,
+            // reinitialize) the clone won't auto-update. We sync every 3s.
+            this._spotlightSyncInterval = setInterval(() => {
+                const src = container.querySelector('video');
+                const dst = document.getElementById(`spotlight-clone-${targetId}`)?.querySelector('video');
+                if (!src || !dst) { clearInterval(this._spotlightSyncInterval); return; }
+
+                // Re-sync srcObject if it drifted
+                if (dst.srcObject !== src.srcObject) {
+                    dst.srcObject = src.srcObject;
+                    const isLocal = (targetId === this.userId);
+                    dst.muted = isLocal;
+                    dst.volume = isLocal ? 0 : 1;
+                    dst.play().catch(() => {});
+                }
+
+                // Detect freeze: readyState should be HAVE_ENOUGH_DATA (4)
+                // If it's stuck and paused, kick it
+                if (dst.paused && dst.readyState >= 2) {
+                    dst.play().catch(() => {});
+                }
+            }, 3000);
 
             // Mark active thumbnail
             this.thumbnailStrip.querySelectorAll('.video-container').forEach(c => c.classList.remove('thumbnail-active'));
@@ -1679,30 +1731,75 @@
         }
 
         // ── Controls ──────────────────────────────────────────────────────────────
+
+        // Creates a silent audio track using AudioContext (used for true muting)
+        _createSilentAudioTrack() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = ctx.createOscillator();
+                const dst = ctx.createMediaStreamDestination();
+                oscillator.connect(dst);
+                oscillator.start();
+                const silentTrack = dst.stream.getAudioTracks()[0];
+                silentTrack.enabled = false; // extra safety
+                return { track: silentTrack, ctx };
+            } catch (e) {
+                console.warn('AudioContext not available, falling back to track.enabled');
+                return null;
+            }
+        }
+
         toggleAudio() {
             if (!this.localStream) return;
             const audioTracks = this.localStream.getAudioTracks();
             if (!audioTracks.length) return;
 
-            // Toggle mute state first, then apply
             this.isAudioMuted = !this.isAudioMuted;
 
-            // 1. Disable/enable the local track itself
-            audioTracks.forEach(t => { t.enabled = !this.isAudioMuted; });
+            // Strategy: replaceTrack with a silent track when muting,
+            // restore real track when unmuting. This is the ONLY
+            // cross-browser-reliable way to truly silence WebRTC audio.
+            const realAudioTrack = audioTracks[0];
 
-            // 2. Also mute/unmute the audio sender in every peer connection
-            //    so the remote side truly stops receiving audio
-            this.peers.forEach((peer) => {
-                if (peer && peer._pc) {
-                    peer._pc.getSenders().forEach(sender => {
-                        if (sender.track && sender.track.kind === 'audio') {
-                            sender.track.enabled = !this.isAudioMuted;
-                        }
-                    });
+            if (this.isAudioMuted) {
+                // Disable the real track
+                realAudioTrack.enabled = false;
+                // Replace with silent track in every peer sender
+                if (!this._silentAudio) {
+                    this._silentAudio = this._createSilentAudioTrack();
                 }
-            });
+                this.peers.forEach((peer) => {
+                    if (peer && peer._pc) {
+                        const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+                        if (sender) {
+                            if (this._silentAudio) {
+                                sender.replaceTrack(this._silentAudio.track).catch(() => {
+                                    // Fallback: just disable
+                                    realAudioTrack.enabled = false;
+                                });
+                            } else {
+                                if (sender.track) sender.track.enabled = false;
+                            }
+                        }
+                    }
+                });
+            } else {
+                // Re-enable the real track
+                realAudioTrack.enabled = true;
+                // Restore real audio track in every peer sender
+                this.peers.forEach((peer) => {
+                    if (peer && peer._pc) {
+                        const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+                        if (sender) {
+                            sender.replaceTrack(realAudioTrack).catch(() => {
+                                realAudioTrack.enabled = true;
+                            });
+                        }
+                    }
+                });
+            }
 
-            // 3. Update local audio indicator (thumbnail + spotlight clone)
+            // Update local audio indicator (thumbnail + spotlight clone)
             const updateIndicator = (container) => {
                 if (!container) return;
                 const indicator = container.querySelector('.audio-indicator');
@@ -1716,7 +1813,7 @@
             updateIndicator(document.getElementById(`spotlight-clone-${this.userId}`));
             lucide.createIcons();
 
-            // 4. Update control button
+            // Update control button
             const muteIcon = this.muteBtn.querySelector('i');
             if (muteIcon) {
                 muteIcon.setAttribute('data-lucide', this.isAudioMuted ? 'mic-off' : 'mic');
@@ -1804,6 +1901,8 @@
             if (this.streamHealthInterval) { clearInterval(this.streamHealthInterval); this.streamHealthInterval = null; }
             if (this.reconnectTimeout) { clearTimeout(this.reconnectTimeout); this.reconnectTimeout = null; }
             this.qualityIntervals.forEach(id => clearInterval(id)); this.qualityIntervals.clear();
+            if (this._spotlightSyncInterval) { clearInterval(this._spotlightSyncInterval); this._spotlightSyncInterval = null; }
+            if (this._silentAudio) { try { this._silentAudio.ctx.close(); } catch(e){} this._silentAudio = null; }
             this.tearDownFirebaseListeners();
             this.peers.forEach(p => { try { p.destroy(); } catch (e) {} }); this.peers.clear();
             if (this.localStream) { this.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); this.localStream = null; }
@@ -1843,6 +1942,25 @@
     }
 
     window.addEventListener('beforeunload', () => { if (window.videoCallApp) window.videoCallApp.handlePageUnload(); });
+
+    // ── Reposition browser extension iframes that overlap the call controls ──
+    // The nr-ext-rsicon iframe is injected by the "New Relic" or similar browser extension.
+    // We observe the body for it and push it above the controls bar.
+    function repositionExtensionIframe() {
+        const iframe = document.getElementById('nr-ext-rsicon');
+        if (iframe) {
+            iframe.style.setProperty('bottom', '90px', 'important');
+            iframe.style.setProperty('top', 'auto', 'important');
+            iframe.style.setProperty('right', '16px', 'important');
+            iframe.style.setProperty('left', 'auto', 'important');
+            iframe.style.setProperty('position', 'fixed', 'important');
+        }
+    }
+
+    const _extObserver = new MutationObserver(() => repositionExtensionIframe());
+    _extObserver.observe(document.body, { childList: true, subtree: false, attributes: true, attributeFilter: ['style'], attributeOldValue: false });
+    // Also run immediately in case it's already present
+    document.addEventListener('DOMContentLoaded', repositionExtensionIframe);
     document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
         if (typeof SimplePeer === 'undefined') { alert('Failed to load video call library. Please refresh.'); return; }
