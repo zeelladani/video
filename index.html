@@ -920,10 +920,14 @@
         }
 
         loadUserPreferences() {
+            // NOTE: We intentionally do NOT restore isAudioMuted from prefs.
+            // Starting a call muted is confusing and caused audio transmission bugs
+            // (the app state said muted but the WebRTC sender was never silenced at join time).
+            // Always start with mic ON. Video muted pref is safe to restore.
             try {
                 const p = JSON.parse(localStorage.getItem('video_call_user_preferences') || 'null');
                 if (p && Date.now() - p.timestamp < 7 * 86400000) {
-                    this.isAudioMuted = p.audioMuted || false;
+                    this.isAudioMuted = false; // Always start unmuted
                     this.isVideoMuted = p.videoMuted || false;
                 }
             } catch (e) {}
@@ -1242,9 +1246,12 @@
             }
             if (!this.localStream) { this.showToast('Camera and microphone access required'); throw new Error('No stream'); }
 
-            const aTrack = this.localStream.getAudioTracks()[0];
+            // Always start with audio ON — stash the real track reference
+            this._realAudioTrack = this.localStream.getAudioTracks()[0] || null;
+            this.isAudioMuted = false; // always start unmuted
+
             const vTrack = this.localStream.getVideoTracks()[0];
-            if (aTrack) aTrack.enabled = !this.isAudioMuted;
+            if (this._realAudioTrack) this._realAudioTrack.enabled = true;
             if (vTrack) vTrack.enabled = !this.isVideoMuted;
 
             this.localStream.getTracks().forEach(t => {
@@ -1272,7 +1279,12 @@
 
                 const aTrack = newStream.getAudioTracks()[0];
                 const vTrack = newStream.getVideoTracks()[0];
-                if (aTrack) aTrack.enabled = !this.isAudioMuted;
+
+                // Update the stored real audio track reference
+                if (aTrack) {
+                    this._realAudioTrack = aTrack;
+                    aTrack.enabled = !this.isAudioMuted;
+                }
                 if (vTrack) vTrack.enabled = !this.isVideoMuted;
 
                 // Stop old video tracks only
@@ -1377,8 +1389,13 @@
                 video: { width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 }, facingMode: this.currentFacingMode },
                 audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
             });
-            const aT = newStream.getAudioTracks()[0]; const vT = newStream.getVideoTracks()[0];
-            if (aT) aT.enabled = !this.isAudioMuted;
+            const aT = newStream.getAudioTracks()[0];
+            const vT = newStream.getVideoTracks()[0];
+
+            // Always reinitialize with audio ON — update stored real track ref
+            this._realAudioTrack = aT || null;
+            this.isAudioMuted = false;
+            if (aT) aT.enabled = true;
             if (vT) vT.enabled = !this.isVideoMuted;
             newStream.getTracks().forEach(t => { t.onended = () => this.handleTrackEnded(t.kind); });
 
@@ -1732,80 +1749,85 @@
 
         // ── Controls ──────────────────────────────────────────────────────────────
 
-        // Creates a silent audio track using AudioContext (used for true muting)
+        // Creates a guaranteed-silent audio track via AudioContext
         _createSilentAudioTrack() {
             try {
+                if (this._silentAudio) return this._silentAudio; // reuse
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = ctx.createOscillator();
-                const dst = ctx.createMediaStreamDestination();
-                oscillator.connect(dst);
-                oscillator.start();
-                const silentTrack = dst.stream.getAudioTracks()[0];
-                silentTrack.enabled = false; // extra safety
-                return { track: silentTrack, ctx };
+                const dest = ctx.createMediaStreamDestination();
+                // A gain node with gain=0 produces true silence
+                const gain = ctx.createGain();
+                gain.gain.value = 0;
+                const osc = ctx.createOscillator();
+                osc.connect(gain);
+                gain.connect(dest);
+                osc.start();
+                const silentTrack = dest.stream.getAudioTracks()[0];
+                this._silentAudio = { track: silentTrack, ctx };
+                return this._silentAudio;
             } catch (e) {
-                console.warn('AudioContext not available, falling back to track.enabled');
+                console.warn('AudioContext unavailable:', e);
                 return null;
             }
         }
 
         toggleAudio() {
             if (!this.localStream) return;
-            const audioTracks = this.localStream.getAudioTracks();
-            if (!audioTracks.length) return;
+
+            // Use the stored real track — NOT localStream.getAudioTracks()[0]
+            // because after replaceTrack, the stream's track list may have changed
+            const realTrack = this._realAudioTrack;
+            if (!realTrack) {
+                // Fallback: grab from stream
+                const tracks = this.localStream.getAudioTracks();
+                if (!tracks.length) return;
+                this._realAudioTrack = tracks[0];
+            }
 
             this.isAudioMuted = !this.isAudioMuted;
 
-            // Strategy: replaceTrack with a silent track when muting,
-            // restore real track when unmuting. This is the ONLY
-            // cross-browser-reliable way to truly silence WebRTC audio.
-            const realAudioTrack = audioTracks[0];
-
             if (this.isAudioMuted) {
-                // Disable the real track
-                realAudioTrack.enabled = false;
-                // Replace with silent track in every peer sender
-                if (!this._silentAudio) {
-                    this._silentAudio = this._createSilentAudioTrack();
-                }
+                // 1. Disable the real track locally
+                this._realAudioTrack.enabled = false;
+
+                // 2. Replace with silent track in ALL peer senders
+                const silent = this._createSilentAudioTrack();
                 this.peers.forEach((peer) => {
-                    if (peer && peer._pc) {
-                        const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'audio');
-                        if (sender) {
-                            if (this._silentAudio) {
-                                sender.replaceTrack(this._silentAudio.track).catch(() => {
-                                    // Fallback: just disable
-                                    realAudioTrack.enabled = false;
-                                });
-                            } else {
-                                if (sender.track) sender.track.enabled = false;
-                            }
-                        }
+                    if (!peer || !peer._pc) return;
+                    const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+                    if (!sender) return;
+                    if (silent) {
+                        sender.replaceTrack(silent.track).catch(e => {
+                            console.warn('replaceTrack (mute) failed, disabling track:', e);
+                            if (this._realAudioTrack) this._realAudioTrack.enabled = false;
+                        });
+                    } else {
+                        if (sender.track) sender.track.enabled = false;
                     }
                 });
             } else {
-                // Re-enable the real track
-                realAudioTrack.enabled = true;
-                // Restore real audio track in every peer sender
+                // 1. Re-enable the real track
+                this._realAudioTrack.enabled = true;
+
+                // 2. Restore real track in ALL peer senders
                 this.peers.forEach((peer) => {
-                    if (peer && peer._pc) {
-                        const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'audio');
-                        if (sender) {
-                            sender.replaceTrack(realAudioTrack).catch(() => {
-                                realAudioTrack.enabled = true;
-                            });
-                        }
-                    }
+                    if (!peer || !peer._pc) return;
+                    const sender = peer._pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+                    if (!sender) return;
+                    sender.replaceTrack(this._realAudioTrack).catch(e => {
+                        console.warn('replaceTrack (unmute) failed, enabling track:', e);
+                        if (this._realAudioTrack) this._realAudioTrack.enabled = true;
+                    });
                 });
             }
 
-            // Update local audio indicator (thumbnail + spotlight clone)
+            // Update UI indicators
             const updateIndicator = (container) => {
                 if (!container) return;
-                const indicator = container.querySelector('.audio-indicator');
-                if (!indicator) return;
-                indicator.classList.toggle('muted', this.isAudioMuted);
-                indicator.innerHTML = this.isAudioMuted
+                const ind = container.querySelector('.audio-indicator');
+                if (!ind) return;
+                ind.classList.toggle('muted', this.isAudioMuted);
+                ind.innerHTML = this.isAudioMuted
                     ? `<i data-lucide="mic-off" style="width:16px;height:16px;"></i>`
                     : `<i data-lucide="mic" style="width:16px;height:16px;"></i>`;
             };
@@ -1813,12 +1835,8 @@
             updateIndicator(document.getElementById(`spotlight-clone-${this.userId}`));
             lucide.createIcons();
 
-            // Update control button
             const muteIcon = this.muteBtn.querySelector('i');
-            if (muteIcon) {
-                muteIcon.setAttribute('data-lucide', this.isAudioMuted ? 'mic-off' : 'mic');
-                lucide.createIcons();
-            }
+            if (muteIcon) { muteIcon.setAttribute('data-lucide', this.isAudioMuted ? 'mic-off' : 'mic'); lucide.createIcons(); }
             this.muteBtn.classList.toggle('active', !this.isAudioMuted);
             const muteLabel = this.muteBtn.querySelector('span');
             if (muteLabel) muteLabel.textContent = this.isAudioMuted ? 'Unmute' : 'Mic';
