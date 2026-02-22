@@ -1672,18 +1672,42 @@
         // ── Controls ──────────────────────────────────────────────────────────────
         toggleAudio() {
             if (!this.localStream) return;
-            const t = this.localStream.getAudioTracks()[0];
-            if (!t) return;
-            t.enabled = !t.enabled;
-            this.isAudioMuted = !t.enabled;
-            const indicator = document.querySelector(`#container-${this.userId} .audio-indicator`);
-            if (indicator) {
+            const audioTracks = this.localStream.getAudioTracks();
+            if (!audioTracks.length) return;
+
+            // Toggle mute state first, then apply
+            this.isAudioMuted = !this.isAudioMuted;
+
+            // 1. Disable/enable the local track itself
+            audioTracks.forEach(t => { t.enabled = !this.isAudioMuted; });
+
+            // 2. Also mute/unmute the audio sender in every peer connection
+            //    so the remote side truly stops receiving audio
+            this.peers.forEach((peer) => {
+                if (peer && peer._pc) {
+                    peer._pc.getSenders().forEach(sender => {
+                        if (sender.track && sender.track.kind === 'audio') {
+                            sender.track.enabled = !this.isAudioMuted;
+                        }
+                    });
+                }
+            });
+
+            // 3. Update local audio indicator (thumbnail + spotlight clone)
+            const updateIndicator = (container) => {
+                if (!container) return;
+                const indicator = container.querySelector('.audio-indicator');
+                if (!indicator) return;
                 indicator.classList.toggle('muted', this.isAudioMuted);
                 indicator.innerHTML = this.isAudioMuted
                     ? `<i data-lucide="mic-off" style="width:16px;height:16px;"></i>`
                     : `<i data-lucide="mic" style="width:16px;height:16px;"></i>`;
-                lucide.createIcons();
-            }
+            };
+            updateIndicator(document.getElementById(`container-${this.userId}`));
+            updateIndicator(document.getElementById(`spotlight-clone-${this.userId}`));
+            lucide.createIcons();
+
+            // 4. Update control button
             const muteIcon = this.muteBtn.querySelector('i');
             if (muteIcon) {
                 muteIcon.setAttribute('data-lucide', this.isAudioMuted ? 'mic-off' : 'mic');
@@ -1692,8 +1716,9 @@
             this.muteBtn.classList.toggle('active', !this.isAudioMuted);
             const muteLabel = this.muteBtn.querySelector('span');
             if (muteLabel) muteLabel.textContent = this.isAudioMuted ? 'Unmute' : 'Mic';
+
             this.saveUserPreferences();
-            this.showToast(this.isAudioMuted ? 'Microphone muted' : 'Microphone on');
+            this.showToast(this.isAudioMuted ? '🔇 Microphone muted' : '🎙️ Microphone on');
         }
 
         toggleVideo() {
