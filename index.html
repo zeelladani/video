@@ -64,22 +64,7 @@
         }
         .https-warning.show { display: block; }
 
-        /* ─── Reconnection Banner ─── */
-        .reconnection-banner {
-            position: fixed; top: 64px; left: 50%;
-            transform: translateX(-50%);
-            background: var(--warning); color: #000;
-            padding: 10px 20px; border-radius: var(--radius-pill);
-            font-size: 13px; font-weight: 600; z-index: 1500;
-            box-shadow: 0 4px 24px rgba(245,158,11,0.4);
-            display: none; align-items: center; gap: 10px; white-space: nowrap;
-        }
-        .reconnection-banner.show { display: flex; }
-        .reconnection-banner button {
-            background: #000; border: none; color: var(--warning);
-            padding: 4px 12px; border-radius: var(--radius-pill);
-            font-weight: 700; cursor: pointer; font-size: 12px;
-        }
+        /* reconnection banner removed - auto-reconnect is silent */
 
         /* ─── Pages ─── */
         .page {
@@ -721,10 +706,7 @@
         ⚠️ HTTPS is required for video calls. Please access this page via HTTPS.
     </div>
 
-    <div id="reconnection-banner" class="reconnection-banner">
-        <span id="reconnection-message">Video stream interrupted. </span>
-        <button id="reconnect-btn">Reconnect</button>
-    </div>
+    <!-- reconnection is now silent/automatic - no banner -->
 
     <div class="container" style="height:100vh;height:-webkit-fill-available;display:flex;flex-direction:column;width:100%;position:relative;">
 
@@ -1046,9 +1028,7 @@
             this.participantCount = document.getElementById('participant-count');
             this.loadingOverlay = document.getElementById('loading-overlay');
             this.loadingMessage = document.getElementById('loading-message');
-            this.reconnectionBanner = document.getElementById('reconnection-banner');
-            this.reconnectionMessage = document.getElementById('reconnection-message');
-            this.reconnectBtn = document.getElementById('reconnect-btn');
+            this.reconnectBtn = document.getElementById('reconnect-btn'); // no longer in DOM, kept for safety
             this.muteBtn = document.getElementById('toggle-mute');
             this.videoBtn = document.getElementById('toggle-video');
             this.cameraFlipBtn = document.getElementById('camera-flip');
@@ -1081,7 +1061,6 @@
             this.videoBtn.addEventListener('click', () => this.toggleVideo());
             this.cameraFlipBtn.addEventListener('click', () => this.flipCamera());
             this.leaveBtn.addEventListener('click', () => this.leaveCall());
-            this.reconnectBtn.addEventListener('click', () => this.forceReconnect());
             this.toggleChatBtn.addEventListener('click', () => this.toggleChat());
             this.closeChatBtn.addEventListener('click', () => this.toggleChat());
             this.sendChatBtn.addEventListener('click', () => this.sendMessage());
@@ -1101,8 +1080,19 @@
 
         setupConnectionMonitoring() {
             if (!database) return;
+            let _fbReconnectTimer = null;
             database.ref('.info/connected').on('value', (snap) => {
-                if (!snap.val()) this.showReconnectionBanner('Firebase connection lost');
+                if (snap.val()) {
+                    // Connected — cancel any pending reconnect timer
+                    if (_fbReconnectTimer) { clearTimeout(_fbReconnectTimer); _fbReconnectTimer = null; }
+                    console.log('✅ Firebase connected');
+                } else {
+                    console.warn('⚠️ Firebase disconnected — will auto-reconnect silently');
+                    // Firebase SDK reconnects automatically. If still down after 8s, log only.
+                    _fbReconnectTimer = setTimeout(() => {
+                        console.warn('Firebase still reconnecting…');
+                    }, 8000);
+                }
             });
         }
 
@@ -1135,12 +1125,9 @@
             this.loadingOverlay.style.display = show ? 'flex' : 'none';
         }
 
-        showReconnectionBanner(message) {
-            this.reconnectionMessage.textContent = message + ' ';
-            this.reconnectionBanner.classList.add('show');
-        }
-
-        hideReconnectionBanner() { this.reconnectionBanner.classList.remove('show'); }
+        // Silent no-ops — reconnection is fully automatic, no UI banner
+        showReconnectionBanner(message) { console.warn('Stream event (auto-recovering):', message); }
+        hideReconnectionBanner() {}
 
         // ── Grid layout manager ───────────────────────────────────────────────────
         // Collect all participant IDs (local + remote) currently rendered
@@ -2135,48 +2122,51 @@
             });
         }
 
-        async leaveCall(clearAll = true) {
+        async leaveCall() {
             this.showLoading(true, 'Leaving call…');
+
+            // Stop all intervals and timers
             if (this.streamHealthInterval) { clearInterval(this.streamHealthInterval); this.streamHealthInterval = null; }
             if (this.reconnectTimeout) { clearTimeout(this.reconnectTimeout); this.reconnectTimeout = null; }
             this.qualityIntervals.forEach(id => clearInterval(id)); this.qualityIntervals.clear();
             if (this._spotlightSyncInterval) { clearInterval(this._spotlightSyncInterval); this._spotlightSyncInterval = null; }
             if (this._silentAudio) { try { this._silentAudio.ctx.close(); } catch(e){} this._silentAudio = null; }
-            this.tearDownFirebaseListeners();
-            this.peers.forEach(p => { try { p.destroy(); } catch (e) {} }); this.peers.clear();
-            if (this.localStream) { this.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); this.localStream = null; }
-            if (database && this.roomId) {
-                const rr = database.ref(`rooms/${this.roomId}`);
-                await rr.child('participants').child(this.userId).remove().catch(() => {});
-                const ps = await rr.child('participants').once('value').catch(() => null);
-                if (!ps || !ps.exists() || ps.numChildren() === 0) await rr.remove().catch(() => {});
-            }
-            if (clearAll) this.clearUserCookies(); else this.clearSessionCookie();
 
-            // Clean up grid
-            this.spotlightArea.innerHTML = '';
-            this.spotlightArea.appendChild(this.videoGridEmpty);
-            this.thumbnailStrip.innerHTML = '';
-            this.thumbnailStrip.classList.add('hidden');
-            this.videoGrid.classList.add('solo');
-            this.videoGridEmpty.classList.add('show');
-            this.spotlightedId = null;
-            this.chatMessagesContainer.innerHTML = '';
-            this.chatPanel.classList.remove('open');
-            this.chatOpen = false; this.clearUnread();
-            this.hideReconnectionBanner();
-            window.history.replaceState({}, '', window.location.pathname);
-            this.callPage.classList.remove('active');
-            this.landingPage.classList.add('active');
-            this.showLoading(false);
-            this.showToast('Left the call');
+            // Tear down Firebase listeners
+            this.tearDownFirebaseListeners();
+
+            // Destroy all peer connections
+            this.peers.forEach(p => { try { p.destroy(); } catch (e) {} }); this.peers.clear();
+
+            // Stop all media tracks
+            if (this.localStream) {
+                this.localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+                this.localStream = null;
+            }
+
+            // Remove self from Firebase room, clean up empty room
+            if (database && this.roomId) {
+                try {
+                    const rr = database.ref(`rooms/${this.roomId}`);
+                    await rr.child('participants').child(this.userId).remove();
+                    const ps = await rr.child('participants').once('value');
+                    if (!ps.exists() || ps.numChildren() === 0) await rr.remove();
+                } catch (e) { console.warn('Firebase cleanup error:', e); }
+            }
+
+            // Always clear ALL cookies and storage
+            this.clearUserCookies();
+
+            // Hard page reload — fresh state, no stale UI or JS state
+            window.location.replace(window.location.pathname);
         }
 
         handlePageUnload() {
+            // Clear all cookies on tab close/refresh too
             if (this.roomId && database) {
                 database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
-                this.clearSessionCookie();
             }
+            this.clearUserCookies();
         }
     }
 
