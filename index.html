@@ -1055,7 +1055,8 @@
                 this.localStream = null;
                 this.peers = new Map();
                 this.roomId = null;
-                this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
+                // Generate or retrieve persistent user ID from cookie
+                this.userId = this.getOrCreateUserId();
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
                 this.isInitialized = false;
@@ -1066,6 +1067,175 @@
                 this.attachEvents();
                 this.checkUrlForRoom();
                 this.setupConnectionMonitoring();
+                this.checkForActiveSession();
+                this.loadUserPreferences();
+            }
+
+            // Get existing user ID from cookie or create new one
+            getOrCreateUserId() {
+                const cookieName = 'video_call_user_id';
+                const cookies = document.cookie.split(';');
+                
+                // Look for existing user ID cookie
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === cookieName) {
+                        console.log('Found existing user session:', value);
+                        return value;
+                    }
+                }
+                
+                // Create new user ID
+                const newUserId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                
+                // Set cookie with expiry (30 days)
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 30);
+                document.cookie = `${cookieName}=${newUserId}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
+                
+                console.log('Created new user session:', newUserId);
+                return newUserId;
+            }
+
+            // Check for active session in current room
+            checkForActiveSession() {
+                const sessionCookieName = 'video_call_active_room';
+                const cookies = document.cookie.split(';');
+                
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === sessionCookieName) {
+                        try {
+                            const sessionData = JSON.parse(decodeURIComponent(value));
+                            
+                            // Check if session is less than 5 minutes old
+                            if (Date.now() - sessionData.timestamp < 5 * 60 * 1000) {
+                                console.log('Found active session for room:', sessionData.roomId);
+                                
+                                // Auto-fill room code and show notification
+                                if (sessionData.roomId) {
+                                    this.roomInput.value = sessionData.roomId;
+                                    this.showToast('Previous session detected. Click Join to reconnect.');
+                                }
+                            } else {
+                                // Clear expired session
+                                this.clearSessionCookie();
+                            }
+                        } catch (e) {
+                            console.error('Error parsing session cookie:', e);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Set active session cookie
+            setActiveSession(roomId) {
+                const sessionCookieName = 'video_call_active_room';
+                const sessionData = {
+                    roomId: roomId,
+                    userId: this.userId,
+                    timestamp: Date.now()
+                };
+                
+                // Set cookie with 1 hour expiry
+                const expiryDate = new Date();
+                expiryDate.setHours(expiryDate.getHours() + 1);
+                document.cookie = `${sessionCookieName}=${encodeURIComponent(JSON.stringify(sessionData))}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
+                
+                // Also store in localStorage for backup
+                localStorage.setItem('video_call_active_session', JSON.stringify(sessionData));
+                
+                console.log('Active session set for room:', roomId);
+            }
+
+            // Clear all user cookies and storage
+            clearUserCookies() {
+                console.log('Clearing user cookies and storage...');
+                
+                // Get all cookies
+                const cookies = document.cookie.split(';');
+                
+                // Clear all cookies related to video call
+                for (let cookie of cookies) {
+                    const [name] = cookie.trim().split('=');
+                    if (name.startsWith('video_call_')) {
+                        // Clear cookie by setting expiry to past date
+                        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure`;
+                    }
+                }
+                
+                // Clear localStorage items
+                localStorage.removeItem('video_call_active_session');
+                localStorage.removeItem('video_call_user_preferences');
+                localStorage.removeItem('video_call_chat_history');
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                console.log('User cookies and storage cleared');
+            }
+
+            // Clear only session cookie
+            clearSessionCookie() {
+                document.cookie = `video_call_active_room=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure`;
+                localStorage.removeItem('video_call_active_session');
+            }
+
+            // Save user preferences in cookies
+            saveUserPreferences() {
+                const prefs = {
+                    audioMuted: this.isAudioMuted,
+                    videoMuted: this.isVideoMuted,
+                    lastRoom: this.roomId,
+                    timestamp: Date.now()
+                };
+                
+                // Save to localStorage
+                localStorage.setItem('video_call_user_preferences', JSON.stringify(prefs));
+                
+                // Save to cookie (30 days expiry)
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 30);
+                document.cookie = `video_call_preferences=${encodeURIComponent(JSON.stringify(prefs))}; expires=${expiryDate.toUTCString()}; path=/; SameSite=Strict; Secure`;
+            }
+
+            // Load user preferences
+            loadUserPreferences() {
+                // Try localStorage first
+                const prefsJson = localStorage.getItem('video_call_user_preferences');
+                if (prefsJson) {
+                    try {
+                        const prefs = JSON.parse(prefsJson);
+                        // Only use preferences less than 7 days old
+                        if (Date.now() - prefs.timestamp < 7 * 24 * 60 * 60 * 1000) {
+                            this.isAudioMuted = prefs.audioMuted || false;
+                            this.isVideoMuted = prefs.videoMuted || false;
+                            console.log('Loaded user preferences from localStorage');
+                        }
+                    } catch (e) {
+                        console.error('Error loading preferences:', e);
+                    }
+                }
+                
+                // Fallback to cookies
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'video_call_preferences') {
+                        try {
+                            const prefs = JSON.parse(decodeURIComponent(value));
+                            if (Date.now() - prefs.timestamp < 7 * 24 * 60 * 60 * 1000) {
+                                this.isAudioMuted = prefs.audioMuted || false;
+                                this.isVideoMuted = prefs.videoMuted || false;
+                                console.log('Loaded user preferences from cookie');
+                            }
+                        } catch (e) {
+                            console.error('Error loading preferences from cookie:', e);
+                        }
+                        break;
+                    }
+                }
             }
 
             initializeElements() {
@@ -1188,6 +1358,9 @@
                     // Setup Firebase listeners
                     this.setupFirebaseListeners();
                     
+                    // Set active session cookie
+                    this.setActiveSession(this.roomId);
+                    
                     this.isInitialized = true;
                     
                     this.showToast(`Room created: ${this.roomId}`);
@@ -1238,6 +1411,9 @@
                     // Setup Firebase listeners
                     this.setupFirebaseListeners();
                     
+                    // Set active session cookie
+                    this.setActiveSession(roomCode);
+                    
                     this.isInitialized = true;
                     
                     this.showToast(`Joined room: ${roomCode}`);
@@ -1268,6 +1444,17 @@
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
                     console.log('🎥 Media initialized successfully');
                     
+                    // Apply saved mute states
+                    if (this.isAudioMuted) {
+                        const audioTrack = this.localStream.getAudioTracks()[0];
+                        if (audioTrack) audioTrack.enabled = false;
+                    }
+                    
+                    if (this.isVideoMuted) {
+                        const videoTrack = this.localStream.getVideoTracks()[0];
+                        if (videoTrack) videoTrack.enabled = false;
+                    }
+                    
                     // Add local video to grid
                     this.addLocalVideo();
                     
@@ -1281,6 +1468,18 @@
                             audio: true
                         });
                         console.log('📹 Media initialized with basic constraints');
+                        
+                        // Apply saved mute states
+                        if (this.isAudioMuted) {
+                            const audioTrack = this.localStream.getAudioTracks()[0];
+                            if (audioTrack) audioTrack.enabled = false;
+                        }
+                        
+                        if (this.isVideoMuted) {
+                            const videoTrack = this.localStream.getVideoTracks()[0];
+                            if (videoTrack) videoTrack.enabled = false;
+                        }
+                        
                         this.addLocalVideo();
                     } catch (fallbackError) {
                         this.showToast('Camera and microphone access is required');
@@ -1292,6 +1491,9 @@
             addLocalVideo() {
                 const container = document.createElement('div');
                 container.className = 'video-container local-video';
+                if (this.isVideoMuted) {
+                    container.classList.add('video-off');
+                }
                 container.id = `container-${this.userId}`;
                 
                 const video = document.createElement('video');
@@ -1311,7 +1513,12 @@
                 
                 const audioIndicator = document.createElement('div');
                 audioIndicator.className = 'audio-indicator';
-                audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
+                if (this.isAudioMuted) {
+                    audioIndicator.classList.add('muted');
+                    audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png">';
+                } else {
+                    audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
+                }
                 
                 // Add PiP button
                 const pipBtn = document.createElement('button');
@@ -1328,6 +1535,19 @@
                 container.appendChild(audioIndicator);
                 container.appendChild(pipBtn);
                 this.videoGrid.appendChild(container);
+                
+                // Update mute button state
+                if (this.isAudioMuted) {
+                    this.muteBtn.classList.remove('active');
+                } else {
+                    this.muteBtn.classList.add('active');
+                }
+                
+                if (this.isVideoMuted) {
+                    this.videoBtn.classList.remove('active');
+                } else {
+                    this.videoBtn.classList.add('active');
+                }
                 
                 // Handle play() promise correctly
                 const playPromise = video.play();
@@ -1698,6 +1918,9 @@
                             this.muteBtn.classList.add('active');
                         }
                         
+                        // Save preferences
+                        this.saveUserPreferences();
+                        
                         this.showToast(this.isAudioMuted ? 'Microphone muted' : 'Microphone unmuted');
                     }
                 }
@@ -1724,6 +1947,9 @@
                         } else {
                             this.videoBtn.classList.add('active');
                         }
+                        
+                        // Save preferences
+                        this.saveUserPreferences();
                         
                         this.showToast(this.isVideoMuted ? 'Video paused' : 'Video resumed');
                     }
@@ -1784,7 +2010,7 @@
                 return div.innerHTML;
             }
 
-            async leaveCall() {
+            async leaveCall(clearAllCookies = true) {
                 this.showLoading(true, 'Leaving call...');
                 
                 // Close all peer connections
@@ -1821,8 +2047,24 @@
                     }
                 }
                 
+                // Clear cookies and storage for this user
+                if (clearAllCookies) {
+                    this.clearUserCookies();
+                    
+                    // Generate new user ID for next session
+                    this.userId = this.getOrCreateUserId();
+                    
+                    this.showToast('Session cleared. All cookies removed.');
+                } else {
+                    // Just clear session cookie, keep user ID
+                    this.clearSessionCookie();
+                }
+                
                 // Clear video grid
                 this.videoGrid.innerHTML = '';
+                
+                // Clear chat messages
+                this.chatMessagesContainer.innerHTML = '';
                 
                 // Close chat panel
                 this.chatPanel.classList.remove('open');
@@ -1836,6 +2078,25 @@
                 
                 this.showLoading(false);
                 this.showToast('Left the call');
+            }
+
+            // Handle page unload (user closes tab)
+            handlePageUnload() {
+                if (this.roomId && database) {
+                    // Remove user from room
+                    const roomRef = database.ref(`rooms/${this.roomId}`);
+                    roomRef.child('participants').child(this.userId).remove();
+                    
+                    // Check if room is empty
+                    roomRef.child('participants').once('value', (snap) => {
+                        if (!snap.exists() || snap.numChildren() === 0) {
+                            roomRef.remove();
+                        }
+                    });
+                    
+                    // Clear session cookie but keep user ID
+                    this.clearSessionCookie();
+                }
             }
 
             copyRoomCode() {
@@ -1856,6 +2117,13 @@
             }
         }
 
+        // Add beforeunload event listener to handle tab close
+        window.addEventListener('beforeunload', () => {
+            if (window.videoCallApp) {
+                window.videoCallApp.handlePageUnload();
+            }
+        });
+
         // Start the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🚀 DOM loaded, starting application...');
@@ -1868,7 +2136,8 @@
             }
             
             try {
-                new VideoCallApp();
+                // Store app instance globally for beforeunload handler
+                window.videoCallApp = new VideoCallApp();
             } catch (error) {
                 console.error('Failed to start application:', error);
                 alert('Failed to start video call application. Please refresh the page.');
