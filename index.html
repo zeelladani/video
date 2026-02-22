@@ -9,7 +9,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a1a">
     <style>
-        /* ... (CSS remains the same) ... */
         * {
             margin: 0;
             padding: 0;
@@ -765,9 +764,8 @@
         }
 
         // Constants
-        const ROOM_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        const ROOM_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
-        // Video Call App Class
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
@@ -778,16 +776,9 @@
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
                 
-                // Camera switching properties
                 this.currentFacingMode = 'user';
                 this.hasMultipleCameras = false;
-                this.availableCameras = [];
                 
-                // Signaling queue to prevent race conditions
-                this.signalQueue = new Map();
-                this.connectionTimeout = 30000; // 30 seconds
-                
-                // Cleanup timer
                 this.cleanupInterval = null;
                 
                 this.initializeElements();
@@ -810,7 +801,6 @@
                 this.loadingOverlay = document.getElementById('loading-overlay');
                 this.loadingMessage = document.getElementById('loading-message');
                 
-                // Control buttons
                 this.muteBtn = document.getElementById('toggle-mute');
                 this.videoBtn = document.getElementById('toggle-video');
                 this.switchCameraBtn = document.getElementById('switch-camera');
@@ -873,19 +863,15 @@
                 this.loadingOverlay.style.display = show ? 'flex' : 'none';
             }
 
-            // Start periodic cleanup of old rooms
             startCleanupScheduler() {
                 this.cleanupInterval = setInterval(() => {
                     this.cleanupOldRooms();
-                }, 60 * 60 * 1000); // 1 hour
+                }, 60 * 60 * 1000);
                 this.cleanupOldRooms();
             }
 
-            // Clean up rooms older than 24 hours
             async cleanupOldRooms() {
                 if (!database) return;
-                
-                console.log('🧹 Running scheduled cleanup of old rooms...');
                 
                 const now = Date.now();
                 const roomsRef = database.ref('rooms');
@@ -896,25 +882,13 @@
                     
                     if (!rooms) return;
                     
-                    let deletedCount = 0;
-                    
                     Object.keys(rooms).forEach(roomId => {
                         const room = rooms[roomId];
-                        
-                        if (room.created) {
-                            const age = now - room.created;
-                            
-                            if (age > ROOM_EXPIRY_TIME) {
-                                console.log(`🗑️ Deleting old room: ${roomId} (age: ${Math.round(age / (60*60*1000))} hours)`);
-                                database.ref(`rooms/${roomId}`).remove();
-                                deletedCount++;
-                            }
+                        if (room.created && (now - room.created) > ROOM_EXPIRY_TIME) {
+                            console.log(`🗑️ Deleting old room: ${roomId}`);
+                            database.ref(`rooms/${roomId}`).remove();
                         }
                     });
-                    
-                    if (deletedCount > 0) {
-                        console.log(`✅ Cleaned up ${deletedCount} old room(s)`);
-                    }
                 } catch (error) {
                     console.error('Error during cleanup:', error);
                 }
@@ -946,7 +920,7 @@
                     
                     this.setupFirebaseListeners();
                     
-                    this.showToast(`Room created: ${this.roomId} (expires in 24h)`);
+                    this.showToast(`Room created: ${this.roomId}`);
                     setTimeout(() => this.copyRoomCode(), 1000);
                     
                 } catch (error) {
@@ -984,11 +958,8 @@
                                 createdBy: this.userId,
                                 lastActive: now
                             });
-                            this.showToast('Room created (expires in 24h)');
                         } else {
-                            await roomRef.update({
-                                lastActive: Date.now()
-                            });
+                            await roomRef.update({ lastActive: Date.now() });
                         }
                     }
                     
@@ -1013,24 +984,21 @@
                 try {
                     await this.checkAvailableCameras();
                     
-                    const constraints = {
-                        video: {
-                            width: { ideal: 1280, max: 1920 },
-                            height: { ideal: 720, max: 1080 },
-                            facingMode: this.currentFacingMode
+                    this.localStream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            facingMode: this.currentFacingMode,
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
                         },
                         audio: {
                             echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true
+                            noiseSuppression: true
                         }
-                    };
+                    });
                     
-                    this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
                     console.log('🎥 Media initialized successfully with facing mode:', this.currentFacingMode);
                     
                     this.addLocalVideo();
-                    
                     this.switchCameraBtn.style.display = this.hasMultipleCameras ? 'flex' : 'none';
                     
                 } catch (error) {
@@ -1043,11 +1011,9 @@
                         });
                         console.log('📹 Media initialized with basic constraints');
                         this.addLocalVideo();
-                        
                         this.switchCameraBtn.style.display = 'none';
-                        
                     } catch (fallbackError) {
-                        this.showToast('Camera and microphone access is required');
+                        this.showToast('Camera access required');
                         throw error;
                     }
                 }
@@ -1055,21 +1021,10 @@
 
             async checkAvailableCameras() {
                 try {
-                    if (!this.localStream) {
-                        try {
-                            const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                            tempStream.getTracks().forEach(t => t.stop());
-                        } catch (e) {
-                            console.log('Permission check needed');
-                        }
-                    }
-                    
                     const devices = await navigator.mediaDevices.enumerateDevices();
-                    this.availableCameras = devices.filter(device => device.kind === 'videoinput');
+                    this.availableCameras = devices.filter(d => d.kind === 'videoinput');
                     this.hasMultipleCameras = this.availableCameras.length > 1;
-                    
                     console.log(`Found ${this.availableCameras.length} camera(s)`);
-                    
                 } catch (error) {
                     console.error('Error checking cameras:', error);
                     this.hasMultipleCameras = false;
@@ -1078,7 +1033,7 @@
 
             async switchCamera() {
                 if (!this.hasMultipleCameras) {
-                    this.showToast('No alternative camera available');
+                    this.showToast('No alternative camera');
                     return;
                 }
 
@@ -1087,32 +1042,22 @@
                     
                     this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
                     
-                    const currentTrack = this.localStream.getVideoTracks()[0];
-                    const settings = currentTrack.getSettings();
+                    const settings = this.localStream.getVideoTracks()[0].getSettings();
                     
                     const existingPeers = [];
                     this.peers.forEach((peer, peerId) => {
-                        existingPeers.push({
-                            id: peerId,
-                            initiator: !peer.initiator
-                        });
+                        existingPeers.push({ id: peerId, initiator: !peer.initiator });
                     });
                     
-                    this.peers.forEach((peer) => {
-                        try {
-                            peer.destroy();
-                        } catch (e) {}
-                    });
+                    this.peers.forEach(p => p.destroy());
                     this.peers.clear();
                     
-                    this.localStream.getVideoTracks().forEach(track => {
-                        track.stop();
-                    });
+                    this.localStream.getVideoTracks().forEach(t => t.stop());
                     
                     const newStream = await navigator.mediaDevices.getUserMedia({
                         video: {
-                            width: settings.width ? { ideal: settings.width } : { ideal: 1280 },
-                            height: settings.height ? { ideal: settings.height } : { ideal: 720 },
+                            width: settings.width || 1280,
+                            height: settings.height || 720,
                             facingMode: this.currentFacingMode
                         },
                         audio: false
@@ -1121,11 +1066,7 @@
                     const newVideoTrack = newStream.getVideoTracks()[0];
                     
                     const updatedStream = new MediaStream();
-                    
-                    this.localStream.getAudioTracks().forEach(track => {
-                        updatedStream.addTrack(track);
-                    });
-                    
+                    this.localStream.getAudioTracks().forEach(t => updatedStream.addTrack(t));
                     updatedStream.addTrack(newVideoTrack);
                     
                     this.localStream = updatedStream;
@@ -1133,7 +1074,7 @@
                     const localVideo = document.querySelector(`#container-${this.userId} video`);
                     if (localVideo) {
                         localVideo.srcObject = this.localStream;
-                        localVideo.play().catch(e => console.log('Local video play error:', e));
+                        localVideo.play().catch(() => {});
                     }
                     
                     const localContainer = document.getElementById(`container-${this.userId}`);
@@ -1145,23 +1086,20 @@
                         }
                     }
                     
-                    console.log('Reconnecting to peers after camera switch...');
-                    
-                    for (let i = 0; i < existingPeers.length; i++) {
-                        const peer = existingPeers[i];
+                    existingPeers.forEach((peer, i) => {
                         setTimeout(() => {
                             if (!this.peers.has(peer.id) && this.localStream) {
-                                console.log(`Reconnecting to peer: ${peer.id} (initiator: ${peer.initiator})`);
+                                console.log(`Reconnecting to peer: ${peer.id}`);
                                 this.connectToPeer(peer.id, peer.initiator);
                             }
-                        }, i * 1500);
-                    }
+                        }, i * 1000);
+                    });
                     
                     this.showToast(`Switched to ${this.currentFacingMode === 'user' ? 'front' : 'back'} camera`);
                     
                 } catch (error) {
-                    console.error('Error switching camera:', error);
-                    this.showToast('Failed to switch camera');
+                    console.error('Camera switch error:', error);
+                    this.showToast('Switch failed');
                 } finally {
                     this.showLoading(false);
                 }
@@ -1191,9 +1129,7 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
                 
-                video.play().catch(error => {
-                    console.log('Local video play error:', error.name);
-                });
+                video.play().catch(() => {});
             }
 
             setupFirebaseListeners() {
@@ -1204,11 +1140,7 @@
                 const roomRef = database.ref(`rooms/${this.roomId}`);
                 const participantRef = roomRef.child('participants').child(this.userId);
 
-                participantRef.set({
-                    timestamp: Date.now(),
-                    userId: this.userId
-                });
-
+                participantRef.set({ timestamp: Date.now(), userId: this.userId });
                 participantRef.onDisconnect().remove();
 
                 // First, get existing participants
@@ -1246,15 +1178,13 @@
                     this.removeParticipant(participantId);
                     this.updateParticipantCount(roomRef);
                     
-                    roomRef.update({
-                        lastActive: Date.now()
-                    });
+                    roomRef.update({ lastActive: Date.now() });
                 });
 
+                // Listen for signaling data
                 const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
-                const cutoffTime = Date.now() - 60000; // Only signals from last 60 seconds
 
-                signalsRef.orderByChild('timestamp').startAt(cutoffTime).on('child_added', (snapshot) => {
+                signalsRef.on('child_added', (snapshot) => {
                     const signal = snapshot.val();
                     if (signal.target === this.userId && signal.from !== this.userId) {
                         console.log('📨 Received signal from:', signal.from, 'type:', signal.signal.type);
@@ -1335,8 +1265,10 @@
                     });
 
                     peer.on('error', (err) => {
-                        console.error('⚠️ Peer connection error:', peerId, err.message);
-                        // Don't remove on error, let it try to recover
+                        // Ignore AbortError as it's normal during disconnection
+                        if (err.message && !err.message.includes('AbortError')) {
+                            console.error('⚠️ Peer connection error:', peerId, err.message);
+                        }
                     });
 
                     peer.on('connect', () => {
@@ -1345,14 +1277,6 @@
 
                     peer.initiator = initiator;
                     this.peers.set(peerId, peer);
-
-                    // Set a timeout to clean up stalled connections
-                    setTimeout(() => {
-                        if (this.peers.has(peerId) && !peer.connected) {
-                            console.log('Connection timeout for peer:', peerId);
-                            this.removeParticipant(peerId);
-                        }
-                    }, this.connectionTimeout);
 
                 } catch (error) {
                     console.error('Error creating peer connection:', error);
@@ -1382,13 +1306,11 @@
                 } else {
                     const peer = this.peers.get(signal.from);
                     try {
-                        // Check if peer is in a state to receive signals
                         if (peer && !peer.destroyed) {
                             peer.signal(signal.signal);
                         }
                     } catch (error) {
                         console.error('Error signaling peer:', error);
-                        // If signaling fails, clean up and try again
                         if (this.peers.has(signal.from)) {
                             this.peers.delete(signal.from);
                             this.connectToPeer(signal.from, false);
@@ -1399,7 +1321,6 @@
 
             addRemoteVideo(stream, userId) {
                 if (document.getElementById(`container-${userId}`)) {
-                    console.log('Video container already exists for:', userId);
                     return;
                 }
 
@@ -1425,22 +1346,12 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
 
-                // Handle play() with proper error handling
-                const playPromise = video.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise
-                        .then(() => {
-                            console.log('Remote video playing for:', userId);
-                        })
-                        .catch(error => {
-                            console.log('Remote video play error for', userId, ':', error.name);
-                            // Don't show error for AbortError - it's normal during disconnection
-                            if (error.name !== 'AbortError') {
-                                console.error('Unexpected play error:', error);
-                            }
-                        });
-                }
+                // Handle play() - ignore AbortError
+                video.play().catch(error => {
+                    if (error.name !== 'AbortError') {
+                        console.error('Remote video play error for', userId, ':', error.name);
+                    }
+                });
             }
 
             removeParticipant(userId) {
@@ -1519,9 +1430,7 @@
                         if (peer) {
                             try {
                                 peer.replaceTrack(videoTrack, this.localStream);
-                            } catch (e) {
-                                console.error('Error replacing track:', e);
-                            }
+                            } catch (e) {}
                         }
                     });
                     
@@ -1541,9 +1450,7 @@
                             if (peer) {
                                 try {
                                     peer.replaceTrack(screenTrack, this.screenStream);
-                                } catch (e) {
-                                    console.error('Error replacing with screen track:', e);
-                                }
+                                } catch (e) {}
                             }
                         });
                         
@@ -1553,7 +1460,7 @@
                         this.showToast('Screen sharing started');
                         
                     } catch (error) {
-                        console.log('Screen sharing cancelled or failed');
+                        console.log('Screen sharing cancelled');
                     }
                 }
             }
