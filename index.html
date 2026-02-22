@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a1a1a">
+    <meta name="theme-color" content="#2B2D42">
     <style>
         * {
             margin: 0;
@@ -16,15 +16,16 @@
         }
 
         :root {
-            --primary: #2196F3;
-            --primary-dark: #1976D2;
+            --primary: #2B2D42;      /* Dark blue-gray */
+            --primary-light: #8D99AE;  /* Light blue-gray */
+            --secondary: #EDF2F4;      /* Off-white */
             --danger: #f44336;
             --success: #4CAF50;
             --bg: #1a1a1a;
-            --surface: #2d2d2d;
-            --surface-light: #3d3d3d;
-            --text: #ffffff;
-            --text-secondary: #b0b0b0;
+            --surface: #2B2D42;
+            --surface-light: #8D99AE;
+            --text: #EDF2F4;
+            --text-secondary: #8D99AE;
         }
 
         body {
@@ -76,10 +77,6 @@
             padding: 20px !important;
         }
 
-        #landing-page:not(.active) {
-            display: none !important;
-        }
-
         .logo {
             text-align: center;
             margin-bottom: 40px;
@@ -90,13 +87,13 @@
             width: 100px;
             height: 100px;
             margin-bottom: 20px;
-            filter: drop-shadow(0 8px 16px rgba(33, 150, 243, 0.3));
+            filter: drop-shadow(0 8px 16px rgba(43, 45, 66, 0.4));
         }
 
         .logo h1 {
             font-size: 32px;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--primary-light) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -131,23 +128,23 @@
 
         .primary-btn {
             background: var(--primary);
-            color: white;
-            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.4);
+            color: var(--secondary);
+            box-shadow: 0 8px 20px rgba(43, 45, 66, 0.4);
         }
 
         .primary-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(33, 150, 243, 0.5);
+            box-shadow: 0 12px 24px rgba(43, 45, 66, 0.5);
         }
 
         .secondary-btn {
-            background: var(--surface);
-            color: var(--text);
-            border: 1px solid var(--surface-light);
+            background: var(--surface-light);
+            color: var(--primary);
+            border: 1px solid var(--primary);
         }
 
         .secondary-btn:hover {
-            background: var(--surface-light);
+            background: var(--primary-light);
         }
 
         .primary-btn:active, .secondary-btn:active {
@@ -158,6 +155,10 @@
             width: 20px;
             height: 20px;
             filter: brightness(0) invert(1);
+        }
+
+        .secondary-btn img {
+            filter: none;
         }
 
         .or-divider {
@@ -192,7 +193,7 @@
             border: none;
             border-radius: 14px;
             background: var(--surface);
-            color: var(--text);
+            color: var(--secondary);
             font-size: 18px;
             text-align: center;
             letter-spacing: 2px;
@@ -203,11 +204,11 @@
 
         #room-code:focus {
             outline: none;
-            border-color: var(--primary);
+            border-color: var(--primary-light);
         }
 
         #room-code::placeholder {
-            color: #666;
+            color: var(--text-secondary);
             font-weight: normal;
             letter-spacing: normal;
             font-size: 16px;
@@ -234,7 +235,7 @@
         }
 
         .call-header {
-            background: rgba(45, 45, 45, 0.95);
+            background: var(--surface);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px 20px;
@@ -243,7 +244,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid var(--primary-light);
             flex-shrink: 0;
         }
 
@@ -251,7 +252,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(141, 153, 174, 0.2);
             padding: 8px 16px;
             border-radius: 40px;
         }
@@ -262,14 +263,14 @@
         }
 
         .room-code {
-            color: var(--primary);
+            color: var(--secondary);
             font-weight: 700;
             font-size: 18px;
             letter-spacing: 1px;
         }
 
         .icon-btn {
-            background: rgba(255,255,255,0.15);
+            background: rgba(141, 153, 174, 0.3);
             border: none;
             cursor: pointer;
             padding: 8px;
@@ -281,7 +282,7 @@
         }
 
         .icon-btn:hover {
-            background: rgba(255,255,255,0.25);
+            background: rgba(141, 153, 174, 0.5);
         }
 
         .icon-btn:active {
@@ -298,7 +299,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(141, 153, 174, 0.2);
             padding: 8px 16px;
             border-radius: 40px;
         }
@@ -306,12 +307,12 @@
         .participant-count img {
             width: 20px;
             height: 20px;
-            filter: brightness(0) invert(0.8);
+            filter: brightness(0) invert(1);
         }
 
         .participant-count span {
             font-weight: 700;
-            color: var(--primary);
+            color: var(--secondary);
             font-size: 16px;
         }
 
@@ -348,7 +349,7 @@
 
         .video-container {
             position: relative;
-            background: #1a1a1a;
+            background: var(--surface);
             border-radius: 16px;
             overflow: hidden;
             aspect-ratio: 16/9;
@@ -380,14 +381,15 @@
             position: absolute;
             bottom: 8px;
             left: 8px;
-            background: rgba(0,0,0,0.7);
+            background: var(--primary);
             padding: 6px 14px;
             border-radius: 24px;
             font-size: 13px;
             font-weight: 500;
+            color: var(--secondary);
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid var(--primary-light);
             z-index: 10;
         }
 
@@ -397,14 +399,14 @@
             right: 8px;
             width: 36px;
             height: 36px;
-            background: rgba(0,0,0,0.7);
+            background: var(--primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid var(--primary-light);
             z-index: 10;
         }
 
@@ -419,12 +421,12 @@
         }
 
         .local-video { 
-            border-color: var(--primary); 
+            border-color: var(--secondary); 
         }
 
         /* Call Controls */
         .call-controls {
-            background: rgba(45, 45, 45, 0.95);
+            background: var(--surface);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             padding: 12px 20px;
@@ -434,7 +436,7 @@
             display: flex;
             justify-content: center;
             gap: 16px;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid var(--primary-light);
             flex-shrink: 0;
             flex-wrap: wrap;
         }
@@ -442,7 +444,7 @@
         .control-btn {
             background: none;
             border: none;
-            color: var(--text);
+            color: var(--secondary);
             cursor: pointer;
             display: flex;
             flex-direction: column;
@@ -458,7 +460,8 @@
         }
 
         .control-btn:hover {
-            background: rgba(255,255,255,0.1);
+            background: var(--primary-light);
+            color: var(--primary);
         }
 
         .control-btn:active {
@@ -473,32 +476,31 @@
         }
 
         .control-btn.active {
-            background: var(--primary);
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .control-btn.active img {
+            filter: none;
         }
 
         .control-btn.danger.active {
             background: var(--danger);
-            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+            color: white;
         }
 
         .control-btn span {
             font-size: 11px;
             font-weight: 500;
-            color: var(--text-secondary);
-        }
-
-        .control-btn.active span {
-            color: white;
         }
 
         /* Camera switch button specific */
         #switch-camera {
-            background: rgba(255,255,255,0.1);
+            background: rgba(141, 153, 174, 0.2);
         }
 
         #switch-camera.active {
-            background: var(--primary);
+            background: var(--primary-light);
         }
 
         /* Loading Overlay */
@@ -508,7 +510,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0,0,0,0.95);
+            background: rgba(43, 45, 66, 0.95);
             display: none;
             flex-direction: column;
             align-items: center;
@@ -521,8 +523,8 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid var(--surface);
-            border-top-color: var(--primary);
+            border: 4px solid var(--surface-light);
+            border-top-color: var(--secondary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
@@ -533,7 +535,7 @@
         }
 
         #loading-message {
-            color: var(--text);
+            color: var(--secondary);
             font-size: 16px;
             font-weight: 500;
             text-align: center;
@@ -546,8 +548,8 @@
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            color: white;
+            background: var(--primary);
+            color: var(--secondary);
             padding: 14px 28px;
             border-radius: 40px;
             font-size: 15px;
@@ -557,7 +559,7 @@
             -webkit-backdrop-filter: blur(8px);
             animation: slideUp 0.3s ease;
             box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid var(--primary-light);
             max-width: 90%;
             text-align: center;
         }
@@ -1265,7 +1267,6 @@
                     });
 
                     peer.on('error', (err) => {
-                        // Ignore AbortError as it's normal during disconnection
                         if (err.message && !err.message.includes('AbortError')) {
                             console.error('⚠️ Peer connection error:', peerId, err.message);
                         }
@@ -1346,7 +1347,6 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
 
-                // Handle play() - ignore AbortError
                 video.play().catch(error => {
                     if (error.name !== 'AbortError') {
                         console.error('Remote video play error for', userId, ':', error.name);
