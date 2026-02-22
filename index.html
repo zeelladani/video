@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Private Video Call - Auto Reconnect</title>
+    <title>Private Video Call - Fixed</title>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a1a">
     <style>
+        /* [Keep all existing CSS exactly as in the previous version] */
         * {
             margin: 0;
             padding: 0;
@@ -1196,7 +1197,7 @@
             appId: "1:438743646214:web:db16a9d5c94820845b8387"
         };
 
-        // Initialize Firebase with reconnection handling
+        // Initialize Firebase
         let database;
         let firebaseApp;
         let reconnectTimer = null;
@@ -1221,13 +1222,11 @@
                         connectionAttempts = 0;
                         document.getElementById('connection-status').classList.remove('show');
                         
-                        // Clear any reconnect timer
                         if (reconnectTimer) {
                             clearTimeout(reconnectTimer);
                             reconnectTimer = null;
                         }
                         
-                        // If we were in a call, restore the session
                         if (window.videoCallApp && window.videoCallApp.roomId && 
                             window.videoCallApp.callPage.classList.contains('active')) {
                             console.log('🔄 Restoring call session after reconnect');
@@ -1238,15 +1237,11 @@
                         console.log('❌ Firebase disconnected');
                         isFirebaseConnected = false;
                         
-                        // Show warning
-                        const statusEl = document.getElementById('connection-status');
-                        statusEl.textContent = '🔌 Connection lost. Reconnecting...';
-                        statusEl.classList.add('show');
+                        document.getElementById('connection-status').textContent = '🔌 Connection lost. Reconnecting...';
+                        document.getElementById('connection-status').classList.add('show');
                         
-                        // Attempt to reconnect
                         scheduleFirebaseReconnect();
                         
-                        // Notify app
                         if (window.videoCallApp) {
                             window.videoCallApp.handleFirebaseDisconnect();
                         }
@@ -1275,17 +1270,14 @@
                 
                 try {
                     if (firebaseApp) {
-                        // Force reconnection by getting new database reference
                         database = firebase.database();
                         
-                        // Re-establish connection monitoring
                         database.ref('.info/connected').on('value', (snap) => {
                             isFirebaseConnected = snap.val();
                             if (snap.val()) {
                                 console.log('✅ Firebase reconnected');
                                 document.getElementById('connection-status').classList.remove('show');
                                 
-                                // Restore app state if needed
                                 if (window.videoCallApp) {
                                     window.videoCallApp.handleFirebaseReconnect();
                                 }
@@ -1298,17 +1290,15 @@
                 
                 reconnectTimer = null;
                 
-                // If still not connected, schedule another attempt
                 if (!isFirebaseConnected) {
                     scheduleFirebaseReconnect();
                 }
-            }, 3000); // Try every 3 seconds
+            }, 3000);
         }
 
-        // Initialize Firebase
         initFirebase();
 
-        // Video Call App Class with Auto-Reconnection
+        // Video Call App Class with Fixed WebRTC Signaling
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
@@ -1321,7 +1311,8 @@
                 this.chatMessages = [];
                 this.connectionQuality = new Map();
                 this.isReconnecting = false;
-                this.pendingSignals = [];
+                this.pendingSignals = new Map(); // Store signals per peer
+                this.processedSignals = new Set(); // Track processed signals to avoid duplicates
                 this.firebaseListeners = [];
                 this.pageVisible = true;
                 this.reconnectAttempts = 0;
@@ -1330,6 +1321,7 @@
                 this.reconnectBanner = document.getElementById('reconnection-banner');
                 this.reconnectBtn = document.getElementById('reconnect-btn');
                 this.connectionStatus = document.getElementById('connection-status');
+                this.peerConnectionStates = new Map(); // Track connection states
                 
                 this.initializeElements();
                 this.attachEvents();
@@ -1339,13 +1331,11 @@
                 this.checkForActiveSession();
                 this.loadUserPreferences();
                 
-                // Auto-restore session if page was refreshed
                 this.autoRestoreSession();
                 
                 console.log('App initialized with ID:', this.userId);
             }
 
-            // Get existing user ID from cookie or create new one
             getOrCreateUserId() {
                 const cookieName = 'video_call_user_id';
                 const cookies = document.cookie.split(';');
@@ -1366,7 +1356,6 @@
                 return newUserId;
             }
 
-            // Handle page visibility changes (user switching tabs)
             setupPageVisibility() {
                 document.addEventListener('visibilitychange', () => {
                     this.pageVisible = !document.hidden;
@@ -1377,13 +1366,11 @@
                     }
                     
                     if (this.pageVisible && this.localStream) {
-                        // Check if stream is still healthy
                         this.checkStreamHealth();
                     }
                 });
             }
 
-            // Monitor network changes
             setupNetworkMonitoring() {
                 window.addEventListener('online', () => {
                     console.log('🌐 Network online');
@@ -1405,7 +1392,6 @@
                 });
             }
 
-            // Auto-restore session after page refresh
             autoRestoreSession() {
                 const lastRoom = sessionStorage.getItem('lastRoom');
                 const lastSession = sessionStorage.getItem('callSession');
@@ -1415,15 +1401,12 @@
                         const session = JSON.parse(lastSession);
                         const timeSince = Date.now() - session.timestamp;
                         
-                        // Restore if session is less than 30 seconds old
                         if (timeSince < 30000) {
                             console.log('🔄 Auto-restoring session for room:', lastRoom);
                             this.roomInput.value = lastRoom;
                             
-                            // Show restore message
                             this.showToast('🔄 Reconnecting to previous call...', 'reconnect');
                             
-                            // Auto-join after short delay
                             setTimeout(() => {
                                 if (!this.callPage.classList.contains('active')) {
                                     this.joinRoom(true);
@@ -1436,7 +1419,6 @@
                 }
             }
 
-            // Save session before page unload
             saveSession() {
                 if (this.roomId) {
                     const session = {
@@ -1449,27 +1431,22 @@
                     
                     sessionStorage.setItem('lastRoom', this.roomId);
                     sessionStorage.setItem('callSession', JSON.stringify(session));
-                    
-                    // Also save to localStorage for longer persistence
                     localStorage.setItem('lastSession', JSON.stringify(session));
                 }
             }
 
-            // Restore session after reconnect
             async restoreSession() {
                 if (this.isReconnecting || !this.roomId) return;
                 
                 this.isReconnecting = true;
                 this.showReconnectionBanner('Reconnecting...');
                 
-                // Add reconnecting class to local video
                 const localContainer = document.getElementById(`container-${this.userId}`);
                 if (localContainer) {
                     localContainer.classList.add('reconnecting');
                 }
                 
                 try {
-                    // Check if Firebase is connected
                     if (!isFirebaseConnected) {
                         console.log('Waiting for Firebase to reconnect...');
                         setTimeout(() => this.restoreSession(), 1000);
@@ -1478,7 +1455,6 @@
                     
                     console.log('🔄 Restoring session for room:', this.roomId);
                     
-                    // Re-add self to participants
                     const roomRef = database.ref(`rooms/${this.roomId}`);
                     await roomRef.child('participants').child(this.userId).set({
                         timestamp: Date.now(),
@@ -1486,10 +1462,8 @@
                         reconnected: true
                     });
                     
-                    // Setup listeners again
                     this.setupFirebaseListeners();
                     
-                    // Reconnect to all peers
                     const snapshot = await roomRef.child('participants').once('value');
                     if (snapshot.exists()) {
                         const participants = snapshot.val();
@@ -1503,7 +1477,6 @@
                         });
                     }
                     
-                    // Remove reconnecting class
                     if (localContainer) {
                         localContainer.classList.remove('reconnecting');
                     }
@@ -1515,26 +1488,22 @@
                     console.error('Failed to restore session:', error);
                     this.showToast('❌ Reconnection failed, trying again...', 'reconnect');
                     
-                    // Try again
                     setTimeout(() => this.restoreSession(), 3000);
                 } finally {
                     this.isReconnecting = false;
                 }
             }
 
-            // Handle Firebase disconnection
             handleFirebaseDisconnect() {
                 if (this.roomId && this.callPage.classList.contains('active')) {
                     console.log('🔌 Firebase disconnected, showing reconnect banner');
                     this.showReconnectionBanner('Connection lost');
                     
-                    // Add reconnecting class to local video
                     const localContainer = document.getElementById(`container-${this.userId}`);
                     if (localContainer) {
                         localContainer.classList.add('reconnecting');
                     }
                     
-                    // Disable chat input
                     if (this.chatInput) {
                         this.chatInput.disabled = true;
                     }
@@ -1544,12 +1513,10 @@
                 }
             }
 
-            // Handle Firebase reconnection
             handleFirebaseReconnect() {
                 if (this.roomId && this.callPage.classList.contains('active')) {
                     console.log('🔄 Firebase reconnected, restoring session...');
                     
-                    // Enable chat input
                     if (this.chatInput) {
                         this.chatInput.disabled = false;
                     }
@@ -1561,7 +1528,6 @@
                 }
             }
 
-            // Check for active session in current room
             checkForActiveSession() {
                 const sessionData = localStorage.getItem('lastSession');
                 if (sessionData) {
@@ -1577,7 +1543,6 @@
                 }
             }
 
-            // Set active session
             setActiveSession(roomId) {
                 const sessionData = {
                     roomId: roomId,
@@ -1590,14 +1555,12 @@
                 sessionStorage.setItem('callSession', JSON.stringify(sessionData));
             }
 
-            // Clear session
             clearSessionCookie() {
                 localStorage.removeItem('video_call_active_session');
                 sessionStorage.removeItem('lastRoom');
                 sessionStorage.removeItem('callSession');
             }
 
-            // Save user preferences
             saveUserPreferences() {
                 const prefs = {
                     audioMuted: this.isAudioMuted,
@@ -1609,7 +1572,6 @@
                 localStorage.setItem('video_call_user_preferences', JSON.stringify(prefs));
             }
 
-            // Load user preferences
             loadUserPreferences() {
                 const prefsJson = localStorage.getItem('video_call_user_preferences');
                 if (prefsJson) {
@@ -1637,12 +1599,10 @@
                 this.loadingOverlay = document.getElementById('loading-overlay');
                 this.loadingMessage = document.getElementById('loading-message');
                 
-                // Control buttons
                 this.muteBtn = document.getElementById('toggle-mute');
                 this.videoBtn = document.getElementById('toggle-video');
                 this.leaveBtn = document.getElementById('leave-call');
                 
-                // Chat elements
                 this.chatPanel = document.getElementById('chat-panel');
                 this.toggleChatBtn = document.getElementById('toggle-chat');
                 this.closeChatBtn = document.getElementById('close-chat');
@@ -1661,7 +1621,6 @@
                 this.leaveBtn.addEventListener('click', () => this.leaveCall());
                 this.reconnectBtn.addEventListener('click', () => this.forceReconnect());
                 
-                // Chat events
                 this.toggleChatBtn.addEventListener('click', () => this.toggleChat());
                 this.closeChatBtn.addEventListener('click', () => this.toggleChat());
                 this.sendChatBtn.addEventListener('click', () => this.sendMessage());
@@ -1673,7 +1632,6 @@
                     if (e.key === 'Enter') this.joinRoom();
                 });
                 
-                // Only allow numbers in room input
                 this.roomInput.addEventListener('input', (e) => {
                     e.target.value = e.target.value.replace(/[^0-9]/g, '');
                 });
@@ -1713,8 +1671,6 @@
                 const bannerSpan = this.reconnectBanner.querySelector('span');
                 bannerSpan.textContent = `🔄 ${message}...`;
                 this.reconnectBanner.classList.add('show');
-                
-                // Add reconnecting class to leave button
                 this.leaveBtn.classList.add('reconnecting');
             }
 
@@ -1833,7 +1789,6 @@
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
                     console.log('🎥 Media initialized successfully');
                     
-                    // Apply saved mute states
                     if (this.isAudioMuted) {
                         const audioTrack = this.localStream.getAudioTracks()[0];
                         if (audioTrack) audioTrack.enabled = false;
@@ -1844,7 +1799,6 @@
                         if (videoTrack) videoTrack.enabled = false;
                     }
                     
-                    // Add listeners for track ended events
                     this.localStream.getTracks().forEach(track => {
                         track.onended = () => {
                             console.log(`Track ended: ${track.kind}`);
@@ -1852,13 +1806,11 @@
                         };
                     });
                     
-                    // Add local video to grid
                     this.addLocalVideo();
                     
                 } catch (error) {
                     console.error('Media initialization error:', error);
                     
-                    // Try with basic constraints as fallback
                     try {
                         this.localStream = await navigator.mediaDevices.getUserMedia({
                             video: true,
@@ -1866,7 +1818,6 @@
                         });
                         console.log('📹 Media initialized with basic constraints');
                         
-                        // Apply saved mute states
                         if (this.isAudioMuted) {
                             const audioTrack = this.localStream.getAudioTracks()[0];
                             if (audioTrack) audioTrack.enabled = false;
@@ -1877,7 +1828,6 @@
                             if (videoTrack) videoTrack.enabled = false;
                         }
                         
-                        // Add listeners for track ended events
                         this.localStream.getTracks().forEach(track => {
                             track.onended = () => {
                                 console.log(`Track ended: ${track.kind}`);
@@ -2161,13 +2111,11 @@
 
                 const roomRef = database.ref(`rooms/${this.roomId}`);
                 
-                // Clean up old listeners
                 if (this.firebaseListeners.length) {
                     this.firebaseListeners.forEach(off => off());
                     this.firebaseListeners = [];
                 }
                 
-                // Participant listeners
                 const onParticipantAdded = roomRef.child('participants').on('child_added', (snapshot) => {
                     const participantId = snapshot.key;
                     if (participantId !== this.userId && !this.peers.has(participantId) && this.localStream) {
@@ -2189,24 +2137,36 @@
                     this.checkAndCleanupRoom(roomRef);
                 });
 
-                // Chat listener
                 const onMessageAdded = roomRef.child('messages').on('child_added', (snapshot) => {
                     const message = snapshot.val();
                     this.displayMessage(message);
                 });
 
-                // Signaling
                 const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
                 const onSignalAdded = signalsRef.on('child_added', (snapshot) => {
                     const signal = snapshot.val();
-                    if (signal.target === this.userId && signal.from !== this.userId) {
-                        console.log('📨 Received signal from:', signal.from);
+                    
+                    // Generate unique ID for this signal to avoid duplicates
+                    const signalId = `${signal.from}-${signal.timestamp}-${signal.signal.type}`;
+                    
+                    if (signal.target === this.userId && signal.from !== this.userId && !this.processedSignals.has(signalId)) {
+                        console.log('📨 Received signal from:', signal.from, 'type:', signal.signal.type);
+                        
+                        // Mark as processed
+                        this.processedSignals.add(signalId);
+                        
+                        // Clean up old processed signals (keep last 100)
+                        if (this.processedSignals.size > 100) {
+                            const iterator = this.processedSignals.values();
+                            this.processedSignals.delete(iterator.next().value);
+                        }
+                        
                         this.handleSignal(signal);
                     }
-                    setTimeout(() => snapshot.ref.remove(), 5000);
+                    
+                    setTimeout(() => snapshot.ref.remove(), 2000);
                 });
 
-                // Store listener cleanup functions
                 this.firebaseListeners = [
                     () => roomRef.child('participants').off('child_added', onParticipantAdded),
                     () => roomRef.child('participants').off('child_removed', onParticipantRemoved),
@@ -2214,7 +2174,6 @@
                     () => signalsRef.off('child_added', onSignalAdded)
                 ];
 
-                // Add ourselves to participants with reconnect flag
                 const participantRef = roomRef.child('participants').child(this.userId);
                 participantRef.set({
                     timestamp: Date.now(),
@@ -2222,7 +2181,6 @@
                     reconnected: this.isReconnecting
                 });
                 
-                // Auto-remove when disconnected
                 participantRef.onDisconnect().remove();
 
                 this.updateParticipantCount(roomRef);
@@ -2248,8 +2206,13 @@
             }
 
             connectToPeer(peerId, initiator = false) {
-                if (this.peers.has(peerId)) return;
+                if (this.peers.has(peerId)) {
+                    console.log('Connection already exists for peer:', peerId);
+                    return;
+                }
+                
                 if (!this.localStream) {
+                    console.log('No local stream yet, delaying connection to:', peerId);
                     setTimeout(() => {
                         if (!this.peers.has(peerId) && this.localStream) {
                             this.connectToPeer(peerId, initiator);
@@ -2273,8 +2236,12 @@
                         }
                     });
 
+                    let signalQueue = [];
+                    let isReady = false;
+
                     peer.on('signal', (signal) => {
                         if (database && this.roomId && isFirebaseConnected) {
+                            console.log('📤 Sending signal to:', peerId, 'type:', signal.type);
                             database.ref(`rooms/${this.roomId}/signals`).push({
                                 from: this.userId,
                                 target: peerId,
@@ -2282,9 +2249,40 @@
                                 timestamp: Date.now()
                             });
                         } else {
-                            // Store signal for later if Firebase is disconnected
-                            this.pendingSignals.push({ peerId, signal });
+                            // Queue signals if Firebase is disconnected
+                            signalQueue.push(signal);
                         }
+                    });
+
+                    peer.on('connect', () => {
+                        console.log('✅ Peer connection established:', peerId);
+                        this.reconnectAttempts = 0;
+                        isReady = true;
+                        
+                        // Send queued signals
+                        if (signalQueue.length > 0) {
+                            signalQueue.forEach(signal => {
+                                if (database && this.roomId && isFirebaseConnected) {
+                                    database.ref(`rooms/${this.roomId}/signals`).push({
+                                        from: this.userId,
+                                        target: peerId,
+                                        signal: signal,
+                                        timestamp: Date.now()
+                                    });
+                                }
+                            });
+                            signalQueue = [];
+                        }
+                        
+                        // Start quality monitoring
+                        const qualityInterval = setInterval(() => {
+                            if (this.peers.has(peerId)) {
+                                const quality = Math.floor(Math.random() * 4) + 1;
+                                this.updateConnectionQuality(peerId, quality);
+                            } else {
+                                clearInterval(qualityInterval);
+                            }
+                        }, 5000);
                     });
 
                     peer.on('stream', (stream) => {
@@ -2299,33 +2297,27 @@
 
                     peer.on('error', (err) => {
                         console.error('⚠️ Peer connection error:', peerId, err.message);
-                        setTimeout(() => {
-                            if (this.roomId && this.localStream) {
-                                this.reconnectPeer(peerId);
-                            }
-                        }, 2000);
-                    });
-
-                    peer.on('connect', () => {
-                        console.log('✅ Peer connection established:', peerId);
-                        this.reconnectAttempts = 0;
-                        
-                        // Send any pending signals
-                        this.pendingSignals = this.pendingSignals.filter(p => {
-                            if (p.peerId === peerId) {
-                                peer.signal(p.signal);
-                                return false;
-                            }
-                            return true;
-                        });
-                        
-                        setInterval(() => {
-                            const quality = Math.floor(Math.random() * 4) + 1;
-                            this.updateConnectionQuality(peerId, quality);
-                        }, 5000);
+                        // Don't immediately reconnect on error, let the close handler handle it
                     });
 
                     this.peers.set(peerId, peer);
+                    
+                    // Store any pending signals for this peer
+                    if (this.pendingSignals.has(peerId)) {
+                        const signals = this.pendingSignals.get(peerId);
+                        signals.forEach(signal => {
+                            setTimeout(() => {
+                                if (this.peers.has(peerId)) {
+                                    try {
+                                        peer.signal(signal);
+                                    } catch (e) {
+                                        console.error('Error sending pending signal:', e);
+                                    }
+                                }
+                            }, 500);
+                        });
+                        this.pendingSignals.delete(peerId);
+                    }
 
                 } catch (error) {
                     console.error('Error creating peer connection:', error);
@@ -2334,27 +2326,32 @@
 
             handleSignal(signal) {
                 if (!this.peers.has(signal.from)) {
+                    // Store signal for when peer is created
+                    if (!this.pendingSignals.has(signal.from)) {
+                        this.pendingSignals.set(signal.from, []);
+                    }
+                    this.pendingSignals.get(signal.from).push(signal.signal);
+                    
+                    // Create peer if it doesn't exist
                     setTimeout(() => {
                         if (!this.peers.has(signal.from)) {
                             this.connectToPeer(signal.from, false);
-                            setTimeout(() => {
-                                const peer = this.peers.get(signal.from);
-                                if (peer) {
-                                    try {
-                                        peer.signal(signal.signal);
-                                    } catch (error) {
-                                        console.error('Error signaling peer:', error);
-                                    }
-                                }
-                            }, 500);
                         }
                     }, 200);
-                } else {
-                    const peer = this.peers.get(signal.from);
-                    try {
-                        peer.signal(signal.signal);
-                    } catch (error) {
-                        console.error('Error signaling peer:', error);
+                    
+                    return;
+                }
+                
+                const peer = this.peers.get(signal.from);
+                try {
+                    peer.signal(signal.signal);
+                } catch (error) {
+                    console.error('Error signaling peer:', error);
+                    
+                    // If signaling fails, recreate peer
+                    if (error.message.includes('wrong state')) {
+                        console.log('Signaling state error, recreating peer');
+                        this.reconnectPeer(signal.from);
                     }
                 }
             }
@@ -2584,7 +2581,6 @@
             async leaveCall() {
                 this.showLoading(true, 'Leaving call...');
                 
-                // Stop stream monitoring
                 if (this.streamHealthInterval) {
                     clearInterval(this.streamHealthInterval);
                     this.streamHealthInterval = null;
@@ -2595,17 +2591,16 @@
                     this.reconnectTimeout = null;
                 }
                 
-                // Clean up Firebase listeners
                 this.firebaseListeners.forEach(off => off());
                 this.firebaseListeners = [];
                 
-                // Close all peer connections
                 this.peers.forEach((peer) => {
                     try { peer.destroy(); } catch (e) {}
                 });
                 this.peers.clear();
+                this.pendingSignals.clear();
+                this.processedSignals.clear();
                 
-                // Stop local media
                 if (this.localStream) {
                     this.localStream.getTracks().forEach(track => {
                         try { track.stop(); } catch (e) {}
@@ -2613,7 +2608,6 @@
                     this.localStream = null;
                 }
                 
-                // Remove self from room
                 if (database && this.roomId && isFirebaseConnected) {
                     const roomRef = database.ref(`rooms/${this.roomId}`);
                     await roomRef.child('participants').child(this.userId).remove();
@@ -2624,19 +2618,15 @@
                     }
                 }
                 
-                // Clear session
                 this.clearSessionCookie();
                 
-                // Clear UI
                 this.videoGrid.innerHTML = '';
                 this.chatMessagesContainer.innerHTML = '';
                 this.chatPanel.classList.remove('open');
                 this.hideReconnectionBanner();
                 
-                // Clear URL
                 window.history.replaceState({}, '', window.location.pathname);
                 
-                // Return to landing page
                 this.callPage.classList.remove('active');
                 this.landingPage.classList.add('active');
                 
@@ -2649,20 +2639,17 @@
                     const roomRef = database.ref(`rooms/${this.roomId}`);
                     roomRef.child('participants').child(this.userId).remove();
                     
-                    // Save session for potential restore
                     this.saveSession();
                 }
             }
         }
 
-        // Handle page unload
         window.addEventListener('beforeunload', () => {
             if (window.videoCallApp) {
                 window.videoCallApp.handlePageUnload();
             }
         });
 
-        // Handle page show (when user returns from back/forward cache)
         window.addEventListener('pageshow', (event) => {
             if (event.persisted && window.videoCallApp) {
                 console.log('📱 Page restored from cache');
@@ -2672,7 +2659,6 @@
             }
         });
 
-        // Start the app
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🚀 DOM loaded, starting application...');
             
