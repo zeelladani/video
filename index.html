@@ -9,6 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a1a">
     <style>
+        /* ... (CSS remains the same as previous version) ... */
         * {
             margin: 0;
             padding: 0;
@@ -371,6 +372,11 @@
             pointer-events: none;
         }
 
+        /* Mirror effect for local video */
+        .local-video video {
+            transform: scaleX(-1);
+        }
+
         .participant-name {
             position: absolute;
             bottom: 8px;
@@ -634,7 +640,7 @@
             <div class="logo">
                 <img src="https://cdn-icons-png.flaticon.com/512/724/724664.png" alt="Video Call">
                 <h1>Private Video Call</h1>
-                <p class="subtitle">Secure • Private • No Login</p>
+                <p class="subtitle">Secure • Private • No Login Required</p>
             </div>
             
             <div class="action-buttons">
@@ -734,21 +740,22 @@
         try {
             firebase.initializeApp(firebaseConfig);
             database = firebase.database();
-            console.log('Firebase initialized');
+            console.log('Firebase initialized successfully');
         } catch (e) {
-            console.error('Firebase error:', e);
+            console.error('Firebase initialization error:', e);
         }
 
         // Video Call App Class
         class VideoCallApp {
             constructor() {
                 this.localStream = null;
-                this.peers = {};
+                this.peers = new Map();
                 this.roomId = null;
                 this.userId = 'user_' + Math.random().toString(36).substr(2, 9);
                 this.screenStream = null;
                 this.isAudioMuted = false;
                 this.isVideoMuted = false;
+                this.isInitialized = false; // Track if fully initialized
                 
                 this.initializeElements();
                 this.attachEvents();
@@ -795,7 +802,9 @@
                 
                 database.ref('.info/connected').on('value', (snap) => {
                     if (snap.val()) {
-                        console.log('Connected to Firebase');
+                        console.log('✅ Connected to Firebase');
+                    } else {
+                        console.log('❌ Disconnected from Firebase');
                     }
                 });
             }
@@ -831,7 +840,7 @@
             async createRoom() {
                 try {
                     this.roomId = Math.random().toString(36).substr(2, 6).toUpperCase();
-                    console.log('Creating room:', this.roomId);
+                    console.log('🚀 Creating room:', this.roomId);
                     
                     this.updateUrl(this.roomId);
                     this.currentRoom.textContent = this.roomId;
@@ -851,13 +860,17 @@
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
                     
+                    // Setup Firebase listeners BEFORE adding to participants
                     this.setupFirebaseListeners();
                     
-                    this.showToast(`Room: ${this.roomId}`);
+                    // Mark as initialized
+                    this.isInitialized = true;
+                    
+                    this.showToast(`Room created: ${this.roomId}`);
                     setTimeout(() => this.copyRoomCode(), 1000);
                     
                 } catch (error) {
-                    console.error('Create room error:', error);
+                    console.error('Error creating room:', error);
                     this.showToast('Failed to create room');
                 } finally {
                     this.showLoading(false);
@@ -868,11 +881,11 @@
                 try {
                     const roomCode = this.roomInput.value.trim().toUpperCase();
                     if (!roomCode || roomCode.length !== 6) {
-                        this.showToast('Enter valid 6-digit code');
+                        this.showToast('Please enter a valid 6-digit code');
                         return;
                     }
                     
-                    console.log('Joining room:', roomCode);
+                    console.log('🔗 Joining room:', roomCode);
                     
                     this.roomId = roomCode;
                     this.updateUrl(roomCode);
@@ -898,12 +911,16 @@
                     this.landingPage.classList.remove('active');
                     this.callPage.classList.add('active');
                     
+                    // Setup Firebase listeners BEFORE adding to participants
                     this.setupFirebaseListeners();
                     
-                    this.showToast(`Joined ${roomCode}`);
+                    // Mark as initialized
+                    this.isInitialized = true;
+                    
+                    this.showToast(`Joined room: ${roomCode}`);
                     
                 } catch (error) {
-                    console.error('Join room error:', error);
+                    console.error('Error joining room:', error);
                     this.showToast('Failed to join room');
                 } finally {
                     this.showLoading(false);
@@ -926,14 +943,26 @@
                     };
                     
                     this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    console.log('Media initialized');
+                    console.log('🎥 Media initialized successfully');
                     
+                    // Add local video to grid
                     this.addLocalVideo();
                     
                 } catch (error) {
-                    console.error('Media error:', error);
-                    this.showToast('Camera/Microphone access required');
-                    throw error;
+                    console.error('Media initialization error:', error);
+                    
+                    // Try with basic constraints as fallback
+                    try {
+                        this.localStream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: true
+                        });
+                        console.log('📹 Media initialized with basic constraints');
+                        this.addLocalVideo();
+                    } catch (fallbackError) {
+                        this.showToast('Camera and microphone access is required');
+                        throw error;
+                    }
                 }
             }
 
@@ -961,82 +990,154 @@
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
                 
-                video.play().catch(e => console.log('Video play error:', e));
+                // Handle play() promise correctly
+                const playPromise = video.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            console.log('Local video playing');
+                        })
+                        .catch(error => {
+                            console.error('Local video play error:', error.name);
+                        });
+                }
             }
 
             setupFirebaseListeners() {
                 if (!database || !this.roomId) return;
-                
-                console.log('Setting up Firebase listeners');
-                
+
+                console.log('🔊 Setting up Firebase listeners for room:', this.roomId);
+
                 const roomRef = database.ref(`rooms/${this.roomId}`);
-                const participantRef = roomRef.child('participants').child(this.userId);
                 
-                // Add self to participants
+                // IMPORTANT: First set up the participant listener to catch existing participants
+                roomRef.child('participants').on('child_added', (snapshot) => {
+                    const participantId = snapshot.key;
+                    if (participantId !== this.userId) {
+                        console.log('👤 Participant found in room:', participantId);
+                        
+                        // Connect to existing participants
+                        if (!this.peers.has(participantId) && this.localStream) {
+                            console.log('Connecting to existing participant:', participantId);
+                            setTimeout(() => {
+                                if (!this.peers.has(participantId)) {
+                                    this.connectToPeer(participantId, true);
+                                }
+                            }, 1000);
+                        }
+                    }
+                });
+
+                // Listen for new participants joining after us
+                roomRef.child('participants').on('child_added', (snapshot) => {
+                    const participantId = snapshot.key;
+                    if (participantId !== this.userId && !this.peers.has(participantId) && this.localStream) {
+                        console.log('👤 New participant joined:', participantId);
+                        // Add delay to avoid connection conflicts
+                        const delay = Math.random() * 1000 + 500;
+                        setTimeout(() => {
+                            if (!this.peers.has(participantId)) {
+                                this.connectToPeer(participantId, true);
+                            }
+                        }, delay);
+                    }
+                    this.updateParticipantCount(roomRef);
+                });
+
+                // Listen for participants leaving
+                roomRef.child('participants').on('child_removed', (snapshot) => {
+                    const participantId = snapshot.key;
+                    console.log('👋 Participant left:', participantId);
+                    this.removeParticipant(participantId);
+                    this.updateParticipantCount(roomRef);
+                    
+                    // Check if room should be cleaned up
+                    this.checkAndCleanupRoom(roomRef);
+                });
+
+                // Listen for signaling data
+                const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
+
+                signalsRef.on('child_added', (snapshot) => {
+                    const signal = snapshot.val();
+                    if (signal.target === this.userId && signal.from !== this.userId) {
+                        console.log('📨 Received signal from:', signal.from, 'type:', signal.signal.type);
+                        this.handleSignal(signal);
+                    }
+                    // Clean up signals after processing
+                    setTimeout(() => snapshot.ref.remove(), 5000);
+                });
+
+                // NOW add ourselves to participants (after listeners are set up)
+                const participantRef = roomRef.child('participants').child(this.userId);
                 participantRef.set({
                     timestamp: Date.now(),
                     userId: this.userId
                 });
                 
+                // Auto-remove when disconnected
                 participantRef.onDisconnect().remove();
-                
-                // Listen for participant changes
-                roomRef.child('participants').on('value', (snapshot) => {
-                    const participants = snapshot.val() || {};
-                    const count = Object.keys(participants).length;
+
+                // Initial participant count
+                this.updateParticipantCount(roomRef);
+            }
+
+            updateParticipantCount(roomRef) {
+                roomRef.child('participants').once('value', (snap) => {
+                    const count = snap.val() ? Object.keys(snap.val()).length : 0;
                     this.participantCount.textContent = count;
+                    console.log(`Room has ${count} participants`);
+                });
+            }
+
+            checkAndCleanupRoom(roomRef) {
+                roomRef.child('participants').once('value', (snap) => {
+                    const participants = snap.val();
+                    const count = participants ? Object.keys(participants).length : 0;
                     
-                    // If alone, show waiting message
-                    if (count === 1) {
-                        // Still alone
+                    if (count === 0) {
+                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
+                        roomRef.remove()
+                            .then(() => {
+                                console.log(`✅ Room ${this.roomId} deleted successfully`);
+                            })
+                            .catch((error) => {
+                                console.error(`❌ Failed to delete room ${this.roomId}:`, error);
+                            });
                     }
-                });
-                
-                // Listen for new participants to connect to
-                roomRef.child('participants').on('child_added', (snapshot) => {
-                    const participantId = snapshot.key;
-                    if (participantId !== this.userId && !this.peers[participantId]) {
-                        console.log('New participant:', participantId);
-                        this.connectToPeer(participantId, true);
-                    }
-                });
-                
-                // Listen for signaling data
-                const signalsRef = database.ref(`rooms/${this.roomId}/signals`);
-                
-                signalsRef.on('child_added', (snapshot) => {
-                    const signal = snapshot.val();
-                    if (signal.target === this.userId && signal.from !== this.userId) {
-                        this.handleSignal(signal);
-                    }
-                    // Clean up old signals
-                    setTimeout(() => snapshot.ref.remove(), 30000);
-                });
-                
-                // Listen for participants leaving
-                roomRef.child('participants').on('child_removed', (snapshot) => {
-                    const participantId = snapshot.key;
-                    this.removeParticipant(participantId);
                 });
             }
 
             connectToPeer(peerId, initiator = false) {
-                if (this.peers[peerId]) return;
-                
-                console.log('Connecting to peer:', peerId, 'initiator:', initiator);
-                
+                if (this.peers.has(peerId)) {
+                    console.log('Connection already exists for peer:', peerId);
+                    return;
+                }
+
+                if (!this.localStream) {
+                    console.log('No local stream yet, delaying connection to:', peerId);
+                    setTimeout(() => {
+                        if (!this.peers.has(peerId) && this.localStream) {
+                            this.connectToPeer(peerId, initiator);
+                        }
+                    }, 1000);
+                    return;
+                }
+
+                console.log('🔌 Connecting to peer:', peerId, 'initiator:', initiator);
+
                 try {
                     const peer = new SimplePeer({
                         initiator: initiator,
                         stream: this.localStream,
-                        trickle: false,
+                        trickle: true,
                         config: {
                             iceServers: [
                                 { urls: 'stun:stun.l.google.com:19302' },
                                 { urls: 'stun:stun1.l.google.com:19302' },
                                 { urls: 'stun:stun2.l.google.com:19302' },
                                 { urls: 'stun:stun3.l.google.com:19302' },
-                                { urls: 'stun:stun4.l.google.com:19302' },
                                 {
                                     urls: 'turn:openrelay.metered.ca:80',
                                     username: 'openrelayproject',
@@ -1045,9 +1146,10 @@
                             ]
                         }
                     });
-                    
+
                     peer.on('signal', (signal) => {
                         if (database && this.roomId) {
+                            console.log('📤 Sending signal to:', peerId, 'type:', signal.type);
                             database.ref(`rooms/${this.roomId}/signals`).push({
                                 from: this.userId,
                                 target: peerId,
@@ -1056,92 +1158,118 @@
                             });
                         }
                     });
-                    
+
                     peer.on('stream', (stream) => {
-                        console.log('Received stream from:', peerId);
+                        console.log('📡 Received stream from peer:', peerId);
                         this.addRemoteVideo(stream, peerId);
                     });
-                    
+
                     peer.on('close', () => {
-                        console.log('Peer closed:', peerId);
+                        console.log('🔒 Peer connection closed:', peerId);
                         this.removeParticipant(peerId);
                     });
-                    
+
                     peer.on('error', (err) => {
-                        console.error('Peer error:', err);
+                        console.error('⚠️ Peer connection error:', peerId, err.message);
                     });
-                    
+
                     peer.on('connect', () => {
-                        console.log('Peer connected:', peerId);
+                        console.log('✅ Peer connection established:', peerId);
                     });
-                    
-                    this.peers[peerId] = peer;
-                    
+
+                    this.peers.set(peerId, peer);
+
                 } catch (error) {
-                    console.error('Connection error:', error);
+                    console.error('Error creating peer connection:', error);
                 }
             }
 
             handleSignal(signal) {
-                if (signal.signal.type === 'offer' && !this.peers[signal.from]) {
-                    this.connectToPeer(signal.from, false);
-                }
-                
-                const peer = this.peers[signal.from];
-                if (peer) {
-                    peer.signal(signal.signal);
+                // If we don't have this peer yet, create it as non-initiator
+                if (!this.peers.has(signal.from)) {
+                    console.log('Creating peer for signal from:', signal.from);
+                    
+                    // Small delay to ensure peer is ready
+                    setTimeout(() => {
+                        if (!this.peers.has(signal.from)) {
+                            this.connectToPeer(signal.from, false);
+                            
+                            // Wait a bit for peer to be created before sending signal
+                            setTimeout(() => {
+                                const peer = this.peers.get(signal.from);
+                                if (peer) {
+                                    try {
+                                        peer.signal(signal.signal);
+                                    } catch (error) {
+                                        console.error('Error signaling peer:', error);
+                                    }
+                                }
+                            }, 500);
+                        }
+                    }, 200);
+                } else {
+                    const peer = this.peers.get(signal.from);
+                    try {
+                        peer.signal(signal.signal);
+                    } catch (error) {
+                        console.error('Error signaling peer:', error);
+                    }
                 }
             }
 
             addRemoteVideo(stream, userId) {
-                if (document.getElementById(`container-${userId}`)) return;
-                
+                if (document.getElementById(`container-${userId}`)) {
+                    console.log('Video container already exists for:', userId);
+                    return;
+                }
+
                 const container = document.createElement('div');
                 container.className = 'video-container';
                 container.id = `container-${userId}`;
-                
+
                 const video = document.createElement('video');
                 video.srcObject = stream;
                 video.autoplay = true;
                 video.playsInline = true;
-                
+
                 const name = document.createElement('span');
                 name.className = 'participant-name';
                 name.textContent = `User ${userId.substr(-4)}`;
-                
+
                 const audioIndicator = document.createElement('div');
                 audioIndicator.className = 'audio-indicator';
                 audioIndicator.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/724/724675.png">';
-                
+
                 container.appendChild(video);
                 container.appendChild(name);
                 container.appendChild(audioIndicator);
                 this.videoGrid.appendChild(container);
-                
-                video.play().catch(e => console.log('Remote video error:', e));
-                
-                this.updateVideoGridLayout();
+
+                // Handle play() promise correctly
+                const playPromise = video.play();
+
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            console.log('Remote video playing for:', userId);
+                        })
+                        .catch(error => {
+                            console.error('Remote video play error for', userId, ':', error.name);
+                        });
+                }
             }
 
             removeParticipant(userId) {
-                if (this.peers[userId]) {
-                    this.peers[userId].destroy();
-                    delete this.peers[userId];
+                if (this.peers.has(userId)) {
+                    const peer = this.peers.get(userId);
+                    peer.destroy();
+                    this.peers.delete(userId);
                 }
-                
-                const container = document.getElementById(`container-${userId}`);
-                if (container) container.remove();
-                
-                this.updateVideoGridLayout();
-            }
 
-            updateVideoGridLayout() {
-                const containers = document.querySelectorAll('.video-container');
-                const count = containers.length;
-                
-                // CSS grid will handle layout automatically
-                // Just trigger reflow
-                this.videoGrid.offsetHeight;
+                const container = document.getElementById(`container-${userId}`);
+                if (container) {
+                    container.remove();
+                }
             }
 
             toggleAudio() {
@@ -1168,7 +1296,7 @@
                             this.muteBtn.classList.add('active');
                         }
                         
-                        this.showToast(this.isAudioMuted ? 'Mic muted' : 'Mic unmuted');
+                        this.showToast(this.isAudioMuted ? 'Microphone muted' : 'Microphone unmuted');
                     }
                 }
             }
@@ -1204,12 +1332,12 @@
                     }
                     
                     // Update all peers
-                    Object.values(this.peers).forEach(peer => {
+                    this.peers.forEach((peer) => {
                         if (peer) {
                             try {
                                 peer.replaceTrack(videoTrack, this.localStream);
                             } catch (e) {
-                                console.error('Replace track error:', e);
+                                console.error('Error replacing track:', e);
                             }
                         }
                     });
@@ -1228,12 +1356,12 @@
                         const screenTrack = this.screenStream.getVideoTracks()[0];
                         
                         // Update all peers
-                        Object.values(this.peers).forEach(peer => {
+                        this.peers.forEach((peer) => {
                             if (peer) {
                                 try {
                                     peer.replaceTrack(screenTrack, this.screenStream);
                                 } catch (e) {
-                                    console.error('Replace with screen error:', e);
+                                    console.error('Error replacing with screen track:', e);
                                 }
                             }
                         });
@@ -1244,7 +1372,7 @@
                         this.showToast('Screen sharing started');
                         
                     } catch (error) {
-                        console.log('Screen sharing cancelled');
+                        console.log('Screen sharing cancelled or failed');
                     }
                 }
             }
@@ -1253,12 +1381,12 @@
                 this.showLoading(true, 'Leaving call...');
                 
                 // Close all peer connections
-                Object.values(this.peers).forEach(peer => {
+                this.peers.forEach((peer) => {
                     try {
                         peer.destroy();
                     } catch (e) {}
                 });
-                this.peers = {};
+                this.peers.clear();
                 
                 // Stop local media
                 if (this.localStream) {
@@ -1280,14 +1408,19 @@
                     this.screenStream = null;
                 }
                 
-                // Clean up Firebase
+                // Remove self and check if room should be deleted
                 if (database && this.roomId) {
-                    await database.ref(`rooms/${this.roomId}/participants/${this.userId}`).remove();
+                    const roomRef = database.ref(`rooms/${this.roomId}`);
                     
-                    // Check if room is empty
-                    const participants = await database.ref(`rooms/${this.roomId}/participants`).once('value');
+                    // Remove self from participants
+                    await roomRef.child('participants').child(this.userId).remove();
+                    
+                    // Check if room is empty and delete if needed
+                    const participants = await roomRef.child('participants').once('value');
                     if (!participants.exists() || participants.numChildren() === 0) {
-                        await database.ref(`rooms/${this.roomId}`).remove();
+                        console.log(`🧹 Room ${this.roomId} is empty, deleting...`);
+                        await roomRef.remove();
+                        console.log(`✅ Room ${this.roomId} deleted successfully`);
                     }
                 }
                 
@@ -1309,24 +1442,37 @@
                 if (!this.roomId) return;
                 
                 navigator.clipboard.writeText(this.roomId).then(() => {
-                    this.showToast('Code copied!');
+                    this.showToast('Room code copied!');
                 }).catch(() => {
-                    // Fallback
+                    // Fallback for older browsers
                     const textarea = document.createElement('textarea');
                     textarea.value = this.roomId;
                     document.body.appendChild(textarea);
                     textarea.select();
                     document.execCommand('copy');
                     document.body.removeChild(textarea);
-                    this.showToast('Code copied!');
+                    this.showToast('Room code copied!');
                 });
             }
         }
 
-        // Start the app
+        // Start the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM loaded, starting app...');
-            new VideoCallApp();
+            console.log('🚀 DOM loaded, starting application...');
+            
+            // Check if SimplePeer is loaded
+            if (typeof SimplePeer === 'undefined') {
+                console.error('SimplePeer library not loaded');
+                alert('Failed to load video call library. Please refresh the page.');
+                return;
+            }
+            
+            try {
+                new VideoCallApp();
+            } catch (error) {
+                console.error('Failed to start application:', error);
+                alert('Failed to start video call application. Please refresh the page.');
+            }
         });
     </script>
 </body>
